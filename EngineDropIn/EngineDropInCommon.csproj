@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{186FF7B0-8C80-4783-A675-0CF340E0E779}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>EngineDropIn</RootNamespace>
+    <AssemblyName>EngineDropIn</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\external_DLL\UnityEngine.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ConcreteOpCodes.cs" />
+    <Compile Include="ConcreteTranslationUnits.cs" />
+    <Compile Include="EvaluatorTests_and_random_fux0ring.cs" />
+    <Compile Include="OperationsTodoFindAMoreExpressiveName.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scopes.cs" />
+    <Compile Include="SerializationTypeMapping.cs" />
+    <Compile Include="baseTypes\TandR_baseTypes.cs" />
+    <Compile Include="baseTypes\VBoxTU.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreGrammar\CoreGrammar.csproj">
+      <Project>{60795826-abda-4afa-bdda-2f0fc3b1657e}</Project>
+      <Name>CoreGrammar</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\NLSendPimping\NLSendPimping\NLSendPimping.csproj">
+      <Project>{d2de2c93-7546-483d-9050-f557cd5eaf33}</Project>
+      <Name>NLSendPimping</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PatchedLightJson\LightJson\PatchedLightJson.csproj">
+      <Project>{3bc85e8b-8a37-4015-b4a8-2d973f8622f1}</Project>
+      <Name>PatchedLightJson</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SuggTree\SuggTree.csproj">
+      <Project>{be58c842-8ac5-4ba4-95ca-24efe44086e9}</Project>
+      <Name>SuggTree</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

@@ -1,0 +1,441 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using ParserComb;
+using System.Reflection;
+
+
+
+using D = System.Diagnostics.Debug;
+
+using NLSPlain;
+using System.IO;
+
+
+namespace MainGrammar {
+
+    public enum PTokE {
+        OP_GT,OP_doubleGT,OP_dot,OP_percent,OP_star,OP_colon,OP_special_prop,OP_slash,OP_comma,
+        OP_arrow_left , OP_arrow_right , 
+        OP_sharp , OP_dollar , 
+        CS_name,
+        squareBRL,squareBRR,
+        curlyBRL,curlyBRR,
+        plainBRL,plainBRR, 
+        ErrT,
+        JSON
+    }
+
+    public class PTokBase { }
+    public class PTokWhitespace : PTokBase { public uint len ; }
+
+
+    public class PTok : PTokBase , TokLen {
+        public PTokE E;
+        public string pay;
+        public uint len { get { return (uint)pay.Length; } } 
+    }
+    public class PTokJSON : PTok  {
+        public object payJSON;
+    }
+
+
+    public class MainGrammar : Parser<PTok> {
+        public class NoACPossible : Exception { }  // typing and other exceptions in RX productions 
+        public class TypingException : Exception { public TypingException(string arg ) :base(arg ){} } 
+
+        #region type_complete
+        class TermP_C : TerminalMatch_PI_C {
+            public PTokE E;
+            public override bool match ( PTok other ) {
+                return E == other.E;
+            }
+        }
+        static PI TermP ( PTokE E ) { return new TermP_C { E = E } ; }
+        #endregion
+
+        public interface ACable { }
+      
+        public interface ACableMemb : ACable {
+            Func<MemberInfo[]> ACMembTypingCallback {get;set;}
+            
+        }
+      /*  public class ACableTypeNode : NamedNode,ACable {
+            public Func< SGA.typeAC_alt[] > AC_Type;
+        }*/
+
+        #region decl
+
+        public class DeclNode : NamedNode {
+            public string name ;
+            public override void build () { name = ((TermNode)children[1]).tok.pay ; }
+        }
+
+        public static PI Decl = Prod<DeclNode> ( SEQ ( TermP ( PTokE.OP_arrow_right ) , TermP( PTokE.CS_name ) ));
+
+        public class DeclStarNode : NamedNode {
+            public string [] decls ; 
+            public override void build() { decls = children.Select( ch => (ch as DeclNode ).name ).ToArray()  ; }
+        }
+        public static PI DeclStar = Prod<DeclStarNode> ( STAR (Decl ) );
+
+        #endregion
+
+        #region MemA
+        public class MemANode : NamedNode {
+            public enum kindE { any , val_field , ref_field , property };
+            public kindE kind = kindE.any;
+            public string name ;
+            
+            public override void build() {
+                
+                if ( children.Length == 2 ) {              // unqualified
+                    kind = kindE.any;
+                    name = TermPay( children[1]);
+                } else if ( children.Length == 3 ) {       // qualified 
+                    switch ( TermEnum(children[1]) ) {
+                        case PTokE.OP_dot:     kind= kindE.val_field; break;
+                        case PTokE.OP_star:    kind= kindE.ref_field; break;
+                        case PTokE.OP_percent: kind= kindE.property; break;
+                        default: throw new Exception();
+                    }
+                    name = TermPay( children[2] );
+                } else throw new Exception();
+            }
+        }
+        public static PI MemA  = Prod<MemANode> ( SEQ ( TermP ( PTokE.OP_dot ) ,
+                                                        OR ( TermP ( PTokE.OP_dot ) ,
+                                                             TermP ( PTokE.OP_star ) ,  
+                                                             TermP ( PTokE.OP_percent ),
+                                                             EPSILON()
+                                                            ),
+                                                        TermP ( PTokE.CS_name ) ));
+        public class MemAVTNode : NamedNode {
+            public string[] decls ;
+            public string name ;
+            public override void build() {
+                name =  ((MemANode)children[0]).name ;
+                decls = children.Length > 1 ? (children[1] as DeclStarNode).decls : new string[0]; // interessante frage , wenn eine Node keine tokens konsumiert ist sie dann doch da? 
+            }
+        }
+        public static PI MemAVT = Prod<MemAVTNode> ( SEQ ( MemA , DeclStar));
+
+        // -- RX --
+
+        public class MemANodeRX : MemANode, ACableMemb {
+            public Func<MemberInfo[]> ACMembTypingCallback {get;set;}
+            public override void build () {
+                kind = kindE.any; // todo replace kind-from-token-derivation below 
+                if ( children.Length == 1 ) {
+                    name = ""; 
+                    kind = kindE.any ;
+                    return ;
+                }
+                PTok Tok1 = (children[1] as TermNode).tok;
+                if ( children.Length == 2 ) {
+                    if (Tok1.E == PTokE.CS_name) {
+                        name = Tok1.pay;
+                        kind = kindE.any ;
+                    } else {
+                        name = "" ;
+                        // todo derive kind 
+                    }
+                    return ;
+                }
+                PTok Tok2 = (children[2] as TermNode).tok;
+                if ( children.Length == 3 ) {
+                    name = Tok2.pay ;
+                    // todo derive kind 
+                }
+            }
+        }
+        public static PI MemARX = Prod<MemANodeRX> (  SEQ ( TermP ( PTokE.OP_dot ) ,
+                                                        OR(  OR ( TermP ( PTokE.OP_dot ) ,
+                                                                  TermP ( PTokE.OP_star ) ),
+                                                            EPSILON()),
+                                                        OR( TermP ( PTokE.CS_name ),
+                                                            EPSILON())
+                                                     ));
+
+        public static PI MemAVT_RX = Prod<MemAVTNode> ( SEQ ( MemARX , DeclStar));
+        
+
+        #endregion
+
+        #region refs 
+        public class SharpRefNode : NamedNode {
+            public string name ;
+            public override void build () {  name = (children[1] as TermNode ).tok.pay ;} 
+        }
+        public class DollarRefNode : NamedNode {
+            public string name ;
+            public override void build () {  name = (children[1] as TermNode ).tok.pay ;} 
+        }
+        
+        public static PI SharpRef  = Prod<SharpRefNode > ( SEQ (  TermP( PTokE.OP_sharp ) , TermP  ( PTokE.CS_name )) );
+        public static PI DollarRef = Prod<DollarRefNode> ( SEQ (  TermP( PTokE.OP_dollar ) , TermP  ( PTokE.CS_name )) );
+
+        //public static PI
+       
+        #endregion
+
+        #region assign
+
+        public class SingleAssignNode : NamedNode {
+            public enum typeE { sharp , dollar , json }
+            public typeE type ;
+            public string name ; 
+            public object JSonVal ;  // atm this is PatchedLJ.JsonValue - but i don't want to have the decision on json library bound here 
+            public override void build ( ) {
+                NamedNode rhs = children[1];
+                if ( rhs is SharpRefNode )  { name = (rhs as SharpRefNode  ).name ; type = typeE.sharp  ; return ;}
+                if ( rhs is DollarRefNode ) { name = (rhs as DollarRefNode ).name ; type = typeE.dollar ; return ; }
+
+                if ( rhs is TermNode && TermEnum( rhs) == PTokE.JSON ) {
+                    type = typeE.json;
+                    JSonVal = ((rhs as TermNode).tok as PTokJSON).payJSON;
+                    return ;
+                }
+                throw new NotImplementedException();
+            }
+        }
+
+        public static  PI SingleAssign = Prod<SingleAssignNode> ( 
+            SEQ ( TermP( PTokE.OP_arrow_left ) ,
+                OR ( SharpRef , DollarRef , TermP( PTokE.JSON ) ) ) );
+
+        public class AssignVTNode : NamedNode {
+            public SingleAssignNode SAN ; 
+            public string [] decls ;
+            public override void build() {
+                SAN = (SingleAssignNode)children[0];
+                decls = children.Length >1 ? (children[1] as DeclStarNode).decls : new string[0] ;
+            }
+        }
+        public static PI AssignVT = Prod<AssignVTNode>( SEQ ( SingleAssign , DeclStar));
+
+        #endregion
+
+        public class RG_EdgeNode : NamedNode {
+            public MemAVTNode    memAVT;
+            public AssignVTNode  assignVT;
+            public override void build() {
+                memAVT = (MemAVTNode)children[0];
+                if ( children.Length == 2 ) assignVT = (AssignVTNode) children[1];
+                if ( children.Length >  2 ) throw new Exception();
+            }
+        }
+        public static PI RG_Edge = Prod<RG_EdgeNode> ( SEQ ( MemAVT , OR ( AssignVT , EPSILON() ) ));
+
+        public class TypeNameNode : NamedNode {
+            public string name;
+            public override void build() => name = TermPay( children[1] );
+        }
+        public static PI TypeName = Prod<TypeNameNode> ( SEQ ( TermP( PTokE.OP_colon ) , TermP( PTokE.CS_name ) ) ) ;
+        
+
+        public class SG_EdgeNode : NamedNode {
+            public enum kindE { immediate , all }
+            public kindE kind;
+            public string typefilter = null ;
+            public override void build() {
+                kind = TermEnum( children[0] ) == PTokE.OP_GT ? kindE.immediate : kindE.all ;
+                if ( children.Length == 2 )  typefilter = (children[1] as TypeNameNode ).name;
+                if ( children.Length >  2 )  throw new Exception();
+            }
+        }
+        
+        public static PI SG_Edge = Prod<SG_EdgeNode> ( 
+            SEQ ( OR ( TermP(PTokE.OP_doubleGT) , TermP ( PTokE.OP_GT )   ) , 
+                  OR ( TypeName , EPSILON() )                                 // <- plugging this in directly here makes the grammar abigous, but eh ... 
+                ) ) ;
+
+
+
+        #region FAN
+
+        public class FanElemNode : NamedNode {
+            public RG_EdgeNode [] rgEdges;
+            public override void build() => rgEdges = children.Select( ch => ( RG_EdgeNode) ch ).ToArray();  
+        }
+        public static PI FanElem = Prod<FanElemNode> ( PLUS ( RG_Edge ));
+
+        public class FanNode : NamedNode {
+            public FanElemNode [] elems ;
+            public override void build() => elems = children.Where( ch => ! (ch is TermNode )) .Select( ch => ( FanElemNode) ch ).ToArray();  
+        }
+        public static PI Fan = Prod<FanNode>( 
+            SEQ ( 
+                TermP( PTokE.curlyBRL ) ,
+                OR (    SEQ ( FanElem , STAR ( SEQ ( TermP( PTokE.OP_comma ) , FanElem ))),
+                        EPSILON() ),
+                TermP( PTokE.curlyBRR) ) );
+
+
+        #endregion 
+
+
+        #region UTIL
+        public class NNShapeException : Exception { }
+
+        // todo : as Extension method ?? 
+        public static PTokE TermEnum ( NamedNode N ) {
+            try { return (N as TermNode).tok.E ;} catch ( Exception ) { throw new NNShapeException() ;}
+        }
+        public static string TermPay ( NamedNode N ) {
+            try { return (N as TermNode).tok.pay ;} catch ( Exception ) { throw new NNShapeException() ;}
+        }
+
+        #endregion 
+
+
+    }
+
+    
+
+
+    public class Lexer {
+
+        const string cSharp_basic_identifierS     = @"(?'pay'[\w_0-9]+)";    // todo
+        const string SingleCharOpS = @"(?'pay'%|\*|\.|:|\[|\]|\{|\}|\(|\)|/|\$|#|,)";
+
+        const string SG_Operator_S                = @"(?'pay'>{1,2})";                        // andere idee : @"((?'pay'>{1,3})[^>]|$)"  , aktuelle variante matcht auch >>>> , bin noch nicht sicher, ob das ein Problem ist 
+        const string SpecialPropOP_S              = @"(?'pay'%!)";
+        const string WhitespaceS                  = @"(?'pay'\s+)"   ;
+        const string JSonLiteral                  = @"(?'pay'@)" ; 
+        const string AssignmentOP_S               = @"(?'pay'<-|<=)";
+        const string DeclOP_S                     = @"(?'pay'->)";
+        
+        /*
+            relaxed tokenizes every string , stuff that would be otherwise not tokenizable is included as special Error Tokens 
+            some extra shizzle for json literals too , but i forgot 
+        */
+        public static PTokBase[] Tokenize ( string str_in , bool relaxed = false ) { 
+
+
+            int    arg_offs_S   = 0   ; // if successful match [arg_offs_S , arg_offs ) is the interval of indices that hold the matched value in the original string
+            int    arg_offs_E   = 0   ;
+            string rest         = str_in ;
+            string payl = null; // <- always set to null on non match, which the rest of the implementation must consider invalid 
+           
+            List<PTokBase> R = new List<PTokBase>();
+
+            Func<string ,  bool > Eat = (  RE ) => { 
+                
+                Match M = Regex.Match(rest,@"^"+RE+@"(?'REST'.*)");
+                if ( M.Success ) {
+                    payl = M.Groups["pay" ].Value;
+                    int   rest_i =  M.Groups["REST"].Index;
+                    
+                    arg_offs_S   =  arg_offs_E;
+                    arg_offs_E   += rest_i;
+
+                    rest         = M.Groups["REST"].Value;
+                    return true;
+                } else { 
+                    payl         = null;
+                    return false;
+                }
+            };
+            
+            while ( true ) {
+                if ( Eat ( WhitespaceS )) {
+                    
+                    R.Add( new PTokWhitespace { len = (uint)payl.Length } ) ;      // todo : i guess "\t".Length == 1 ? that would be a problem here
+                    continue;
+                }
+                if ( Eat ( cSharp_basic_identifierS )) {
+                    R.Add( new PTok { E = PTokE.CS_name , pay = payl } );
+                    continue;
+                }
+                if ( Eat ( AssignmentOP_S ) ) {
+                    PTok op = new PTok { pay = payl };
+                    if      ( payl == "<-" ) op.E = PTokE.OP_arrow_left ;
+                    //else if ( payl == "<=" ) op.E = PTokE.OP_assign_collection;
+                    else throw new Exception();
+                    R.Add( op ) ;
+                    continue;
+                }
+                if ( Eat ( DeclOP_S ) ) {
+                    PTok op = new PTok { pay = payl };
+                    if      ( payl == "->" ) op.E = PTokE.OP_arrow_right ;
+                    else throw new Exception();
+                    R.Add( op ) ;
+                    continue;
+                }
+                if ( Eat ( SG_Operator_S ) ) {
+                    PTok op = new PTok { pay = payl };
+                    if      ( payl == ">"  ) op.E = PTokE.OP_GT;
+                    else if ( payl == ">>" ) op.E = PTokE.OP_doubleGT;
+                    else throw new Exception();
+                    R.Add( op );
+                    continue;
+                }
+                if ( Eat( SpecialPropOP_S )) {
+                    R.Add ( new PTok { E = PTokE.OP_special_prop , pay = payl } );
+                    continue;
+                }
+                if ( Eat( SingleCharOpS ) ) {
+                    PTok op = new PTok { pay = payl };
+                    if      ( payl == "." ) op.E = PTokE.OP_dot;
+                    else if ( payl == "*" ) op.E = PTokE.OP_star;
+                    else if ( payl == "%" ) op.E = PTokE.OP_percent;
+                    else if ( payl == ":" ) op.E = PTokE.OP_colon;
+                    else if ( payl == "[" ) op.E = PTokE.squareBRL;
+                    else if ( payl == "]" ) op.E = PTokE.squareBRR;
+                    else if ( payl == "{" ) op.E = PTokE.curlyBRL;
+                    else if ( payl == "}" ) op.E = PTokE.curlyBRR;
+                    else if ( payl == "(" ) op.E = PTokE.plainBRL;
+                    else if ( payl == ")" ) op.E = PTokE.plainBRR;
+                    else if ( payl == "/" ) op.E = PTokE.OP_slash;
+                    else if ( payl == "$" ) op.E = PTokE.OP_dollar;
+                    else if ( payl == "#" ) op.E = PTokE.OP_sharp;
+                    else if ( payl == "," ) op.E = PTokE.OP_comma;
+                    else throw new Exception();
+                    R.Add( op);
+                    continue;
+                }
+                if ( relaxed ) if (Eat( @"(?'pay'.)" ) ) {
+                        R.Add( new PTok { E = PTokE.ErrT , pay = payl } ); // consume arbitrary char and tag it as tokenization error
+                        continue;
+                }
+                if ( Eat ( JSonLiteral ) ) {  // consumation length determined by json parser 
+                    object JResult = null ;
+                    string new_rest = "";
+                    if ( readJSON( rest , out JResult , out new_rest) ) { 
+                        R.Add ( new PTokJSON { E = PTokE.JSON , pay = payl + rest.Substring(0,rest.Length-new_rest.Length) /* <- todo: quick guess  */ , payJSON = JResult} );
+                        rest = new_rest;
+                    } else {                  // json parsing fails i have no way of knowing where this thing was supposed to end -> can't continue tokenization 
+                        if ( relaxed ) {
+                            R.Add ( new PTok { E =PTokE.ErrT , pay = payl + rest } );
+                            return R.ToArray();                                    
+                        }
+                        else throw new Exception();
+                    }
+                    continue;
+                }
+
+                if ( rest == "" ) return R.ToArray(); // parse success
+                throw new Exception () ; // todo : non tokenizable string 
+            }
+
+        }
+
+        
+        public static bool readJSON ( string arg , out object JResult , out string rest ) {
+            JResult = null ;
+
+            try { 
+                JResult = LightJson.Glue.ParseWithRest( arg , out rest ) ;
+                return true ;
+            } catch ( Exception ) {
+                rest = arg;
+                return false ;
+            }
+
+        }
+
+    }
+}

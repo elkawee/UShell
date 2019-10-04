@@ -1,0 +1,5 @@
+C:\Users\foo\RandomSRC\UShellCleanup\PatchedLightJson\LightJson\bin\Debug\LightJson.dll
+C:\Users\foo\RandomSRC\UShellCleanup\PatchedLightJson\LightJson\bin\Debug\LightJson.pdb
+C:\Users\foo\RandomSRC\UShellCleanup\PatchedLightJson\LightJson\obj\Debug\LightJson.dll
+C:\Users\foo\RandomSRC\UShellCleanup\PatchedLightJson\LightJson\obj\Debug\LightJson.pdb
+C:\Users\foo\RandomSRC\UShellCleanup\PatchedLightJson\LightJson\obj\Debug\PatchedLightJson.csprojResolveAssemblyReference.cache

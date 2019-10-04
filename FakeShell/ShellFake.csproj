@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{9E980874-4F89-4498-9119-61AE71B42CEC}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>FakeShell</RootNamespace>
+    <AssemblyName>FakeShell</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;fakeNetwork haveServerTypes haveShellTypes</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\external_DLL\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shell\ProgramShell.cs">
+      <Link>ProgramShell.cs</Link>
+    </Compile>
+    <Compile Include="..\Shell\Shell.cs">
+      <Link>Shell.cs</Link>
+    </Compile>
+    <Compile Include="..\Shell\ShellParserGlue.cs">
+      <Link>ShellParserGlue.cs</Link>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreGrammar\CoreGrammar.csproj">
+      <Project>{60795826-abda-4afa-bdda-2f0fc3b1657e}</Project>
+      <Name>CoreGrammar</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\EditorlessTests\EditorlessTests.csproj">
+      <Project>{58b3d810-2b74-47cc-ba77-962b1593dc8a}</Project>
+      <Name>EditorlessTests</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\EngineDropIn\EngineDropInCommon.csproj">
+      <Project>{186ff7b0-8c80-4783-a675-0cf340e0e779}</Project>
+      <Name>EngineDropInCommon</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FakeNetworkCommonTypes\NetworkCommonTypes_Fake.csproj">
+      <Project>{3d65f525-bc7c-4f9e-a2e8-07f7e9a7a10e}</Project>
+      <Name>NetworkCommonTypes_Fake</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\NLSendPimping\NLSendPimping\NLSendPimping.csproj">
+      <Project>{d2de2c93-7546-483d-9050-f557cd5eaf33}</Project>
+      <Name>NLSendPimping</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

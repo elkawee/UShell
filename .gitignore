@@ -1,0 +1,39 @@
+
+#  ---   tempfile clutter ---
+
+Temp/*
+Library/*
+.vs/*
+*/bin
+*/obj
+*.log
+# -- subprojects -- 
+
+**/Temp/*
+**/Library/*
+**/.vs
+
+# -- general purpose junk folders -- 
+stash
+
+# -- analyz0r temp files -- 
+*.dot
+*.json 
+*.pdf 
+
+#  ---    emacs clutter  ---- 
+
+*~
+\#*
+.#*
+
+#  --- build targets ---
+
+**/Assets/StreamingAssets/*
+!Assets/StreamingAssets/BinAssets/.gitkeep
+
+
+
+
+
+
