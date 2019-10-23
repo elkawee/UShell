@@ -62,9 +62,9 @@
       <Project>{186ff7b0-8c80-4783-a675-0cf340e0e779}</Project>
       <Name>EngineDropInCommon</Name>
     </ProjectReference>
-    <ProjectReference Include="..\NetworkCommonTypes_Server\NetworkCommonTypes_Server.csproj">
-      <Project>{768eba5e-9d22-40c3-8de1-a72427edda01}</Project>
-      <Name>NetworkCommonTypes_Server</Name>
+    <ProjectReference Include="..\Network\NetworkCommonTypes.csproj">
+      <Project>{11e35e73-6d67-45d9-aec6-31bfa6989f15}</Project>
+      <Name>NetworkCommonTypes</Name>
     </ProjectReference>
     <ProjectReference Include="..\NLSendPimping\NLSendPimping\NLSendPimping.csproj">
       <Project>{d2de2c93-7546-483d-9050-f557cd5eaf33}</Project>
@@ -81,8 +81,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /B /Y $(TargetDir)\*.dll $(SolutionDir)\..\UShellCleanup\UnityTestproject\Assets\DropIN ; 
-del $(SolutionDir)\..\UShellCleanup\UnityTestproject\Assets\DropIN\UnityEngine.dll</PostBuildEvent>
+    <PostBuildEvent>copy /B /Y $(TargetDir)\*.dll $(SolutionDir)\UnityTestproject\Assets\DropIN ; 
+del $(SolutionDir)\UnityTestproject\Assets\DropIN\UnityEngine.dll</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

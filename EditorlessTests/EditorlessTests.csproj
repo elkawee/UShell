@@ -68,10 +68,6 @@
       <Project>{9b7dceb3-108f-4c36-916d-108591793958}</Project>
       <Name>FakeSuggTree</Name>
     </ProjectReference>
-    <ProjectReference Include="..\NLSendPimping\NLSendPimping\NLSendPimping.csproj">
-      <Project>{d2de2c93-7546-483d-9050-f557cd5eaf33}</Project>
-      <Name>NLSendPimping</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

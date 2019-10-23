@@ -360,10 +360,10 @@ namespace TranslateAndEval {
 
         public static void Equivalent ( CH_closedScope cls , string [] names , TypedCH [] CHs ) {
             D.Assert( names.Length == CHs.Length ) ;
-            cls.refs().NLSendRec("scope refs" , 1 , (_obj) => doing( (CH_Scope.Ref) _obj ) );
+            // cls.refs().NLSendRec("scope refs" , 1 , (_obj) => doing( (CH_Scope.Ref) _obj ) ); // git fucked this prototype
             var zipped_refs = names
                 .Zip( CHs , ( n , ch ) => new CH_Scope.Ref { name = n , CH = ch } )
-                .NLSendRec("zpipped" , 1 , doing );
+                /*.NLSendRec("zpipped" , 1 , doing )*/;
 
 
             var test = cls.refs().Zip( zipped_refs ,
@@ -436,7 +436,7 @@ namespace TranslateAndEval {
                 .decl("D2" , D2 )
                 ;
             var LLchain = checkClosureTripwires( CHdelta );
-            LLchain.LIFO().NLSendRec("foo",1, obj => (obj as LL<preCH>).pay.CH );
+            LLchain.LIFO()/*.NLSendRec("foo",1, obj => (obj as LL<preCH>).pay.CH )*/;
 
             D.Assert( LLchain.LIFO().Select( node => node.pay.CH ).SequenceEqual ( new TypedCH[] { D2 , D1 } )    ) ;
             Console.WriteLine ( "================= funky adapters ok ============= " ) ;

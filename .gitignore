@@ -1,5 +1,5 @@
 
-#  ---   tempfile clutter ---
+#  --- VS  tempfile clutter ---
 
 Temp/*
 Library/*
@@ -7,14 +7,22 @@ Library/*
 */bin
 */obj
 *.log
-# -- subprojects -- 
+# -- VS subprojects -- 
 
 **/Temp/*
 **/Library/*
-**/.vs
+**/.vs/*
+**/bin/*
+**/obj/*
 
 # -- general purpose junk folders -- 
 stash
+
+
+# -- DropIn Makefile target --- 
+
+**/Assets/DropIN/*
+
 
 # -- analyz0r temp files -- 
 *.dot
