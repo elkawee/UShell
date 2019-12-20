@@ -154,6 +154,8 @@ namespace TranslateAndEval {
 
             new { type = inType , requested_name = fieldName }.NLSend("fetch Field or Prop" );
 
+            // todo : exceptions for GetField()/GetProperty() 
+
             // try as Fieldname 
             _FI = inType.GetField(fieldName);
             if ( _FI != null ) { isField = true;  return ; }

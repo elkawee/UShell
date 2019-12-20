@@ -26,7 +26,7 @@ namespace SuggestionTree {
         this MembK stuff is the only thing that makes SuggTree depend on CoreGrammar 
         ... but i don't know where else to put it  
     */
-   
+   #if true 
     [Flags]
     public enum MembK_E {
         _val = 1 , _ref  = 2 ,_prop = 4 , _special = 8 
@@ -51,6 +51,10 @@ namespace SuggestionTree {
                 throw new ArgumentException () ;
             }
         }
+        // remove dependency to MainGrammar types ( PTokE ) 
+        // in the future probably remove the whole MembK-filtering stuff from SuggTree altogether 
+
+        /*
         public MainGrammar.PTokE OpE () {
             switch ( E ) {
                 case MembK_E._val: return MainGrammar.PTokE.OP_dot;
@@ -60,11 +64,20 @@ namespace SuggestionTree {
                 default: throw new ArgumentException();
             }
         }
+        */
     }
+
+    /*
+        Frage: 
+            - warum passiert dieses MembK-filtering ueberhaupt im SuggTree? 
+    */
 
     public struct MembK_Filter {
         public static MembK_Filter Any = new MembK_Filter { E = MembK_E._val | MembK_E._ref | MembK_E._prop | MembK_E._special };
         public MembK_E E ;
+        // remove dependency to MainGrammar types 
+        // in the future probably remove the whole MembK-filtering stuff from SuggTree altogether 
+        /*
         public MembK_Filter( MainGrammar.PTokE PE ) {
             switch ( PE ) {
                 case MainGrammar.PTokE.OP_dot:          E = MembK_E._val | MembK_E._ref | MembK_E._prop | MembK_E._special ; break;
@@ -74,9 +87,10 @@ namespace SuggestionTree {
                 default: throw new ArgumentException();
             }
         }
+        */
         public bool matches ( MembK other ) { return (E & other.E) != 0;  }
     }
-
+    #endif 
 
     public static class SuggTAdapter {
         

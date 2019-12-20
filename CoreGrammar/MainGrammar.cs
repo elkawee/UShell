@@ -29,13 +29,13 @@ namespace MainGrammar {
     }
 
     public class PTokBase { }
-    public class PTokWhitespace : PTokBase { public uint len ; }
+    public class PTokWhitespace : PTokBase { public int len ; }
 
 
     public class PTok : PTokBase , TokLen {
         public PTokE E;
         public string pay;
-        public uint len { get { return (uint)pay.Length; } } 
+        public int len { get { return (int)pay.Length; } } 
     }
     public class PTokJSON : PTok  {
         public object payJSON;
@@ -343,7 +343,7 @@ namespace MainGrammar {
             while ( true ) {
                 if ( Eat ( WhitespaceS )) {
                     
-                    R.Add( new PTokWhitespace { len = (uint)payl.Length } ) ;      // todo : i guess "\t".Length == 1 ? that would be a problem here
+                    R.Add( new PTokWhitespace { len = payl.Length } ) ;      // todo : i guess "\t".Length == 1 ? that would be a problem here
                     continue;
                 }
                 if ( Eat ( cSharp_basic_identifierS )) {

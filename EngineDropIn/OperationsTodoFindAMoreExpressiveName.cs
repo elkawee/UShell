@@ -8,7 +8,6 @@ using System.Reflection;
 
 using SGA = SuggestionTree.SuggTAdapter;
 using MG = MainGrammar.MainGrammar;
-// using OG = OldGrammar.MainGrammarOld;
 using D = System.Diagnostics.Debug;
 
 using NLSPlain;
@@ -34,12 +33,12 @@ namespace MainGrammar { // todo maybe own namespace
             public bool        isMemberAC     ;
             public mi_sugg []  memberSuggs    ;
             public string []   typeSuggs      ; 
-            public uint        nu_offs        ;
+            public int         nu_offs        ;
         } 
         static OpAC_res MK_noAC_happend ( IEnumerable<PTokBase> origTokens , uint offset ) {
             return  new OpAC_res {
                 prefix  = "",
-                nu_offs = offset ,
+                nu_offs = (int)offset ,
                 nu_toks = origTokens.ToArray(),
                 AC_happend = false,
                 isMemberAC = false,
@@ -62,28 +61,30 @@ namespace MainGrammar { // todo maybe own namespace
                 mis = (MA_node as MG.ACableMemb).ACMembTypingCallback();
             } catch ( MG.NoACPossible ) { } // simply leave mis == [] in this case 
              
-            // mis is pre-filtered for MembKind with a filter derived from the parsed operator 
+            // mis is pre-filtered for MembKind with a filter derived from the parsed operator ( TODO: check if still true ;) ) 
             if ( mis.Length == 0 ) return noAC_happend;
             string prefix  = SGA.LongestCommonPrefix ( mis.Select(mi => mi.Name).ToArray()) ;
 
-            bool have_common_kind = true;
-            var common_kind =  new SuggestionTree.MembK( mis[0] ) ;
 
             Func<PTokE,string> PTokE_to_string = ( PE ) => {
                 switch ( PE ) {
-                    case PTokE.OP_dot:          return ".";
-                    case PTokE.OP_percent:      return "%";
+                    case PTokE.OP_dot:          return "." ;
+                    case PTokE.OP_percent:      return "%" ;
                     case PTokE.OP_special_prop: return "%!";
-                    case PTokE.OP_star:         return "*";
+                    case PTokE.OP_star:         return "*" ;
                     default: throw new ArgumentException ();
                 }
             };
 
+            #region common_kind 
+            bool have_common_kind = true;
+            var common_kind =  new SuggestionTree.MembK( mis[0] ) ;
+
             // assume member compare Equals for struct 
             foreach ( var mi in mis.Skip(1) ) if ( ! new SuggestionTree.MembK( mi ).Equals( common_kind ) ) { have_common_kind = false ; break ;}
 
-            var res_kind = have_common_kind ? common_kind : new SuggestionTree.MembK { E = SuggestionTree.MembK_E._val } ;
-
+            SuggestionTree.MembK res_kind = have_common_kind ? common_kind : new SuggestionTree.MembK { E = SuggestionTree.MembK_E._val } ;
+            #endregion 
             
             var nu_op    = new PTok { E = res_kind.OpE() , pay = PTokE_to_string( res_kind.OpE() ) };
             var nu_name  = new PTok { E = PTokE.CS_name  , pay = prefix };
@@ -192,16 +193,34 @@ namespace MainGrammar { // todo maybe own namespace
 
         }
 #endif 
+        /* 
+            functor to decouple the intricacies of translation and scoping 
+            to be moved elswhere later 
+
+            passing in an already generated AST does not make sense because this only this part is supposed to know how to react to errors ( how pass them on to the interactive shell and so forth ) 
+        */ 
+        public static Func<string,NamedNode> MK_GetAst (GrammarEntry GE , TranslateLHS TR_lhs) {
+            
+            return ( str_in ) => { 
+                var Stripped = TranslateEntry.LexxAndStripWS( str_in );
+                /*
+                    todo : this version of scope throws on incomplete parse - should be allowed for interactive 
+
+                    also : how to deal with cursor pos beyond the end of an incomplete parse ? ( analog problen to synced walking for Colorize() in the console ) 
+                    */
+                return TranslateEntry.Scope( Stripped , GE , TR_lhs);
+            };
+        }
 
 #if true 
-        public static OpAC_res AC ( string str_in , uint cursor_pos , GrammarEntry GE , TranslateLHS TR_lhs ) {
+        public static OpAC_res AC ( string str_in , uint cursor_pos , Func<string,NamedNode> GetAst ) {
             
             var l_toks = Lexer.Tokenize( str_in ) ;
-            var StrippedL = new List<PTok>();
+
             var TokL = new TokLinePlanB<PTok>();
             foreach ( PTokBase tb in l_toks ) {
                 if ( tb is PTok ) {
-                    StrippedL.Add( (PTok) tb ) ;
+
                     TokL.AddTok( (PTok) tb ); 
                 } else {
                     TokL.AddWS( (tb as PTokWhitespace).len ) ;
@@ -209,9 +228,7 @@ namespace MainGrammar { // todo maybe own namespace
             }
             var noAC_happend = MK_noAC_happend ( l_toks , cursor_pos );
 
-            var StrippedA = StrippedL.ToArray();
-
-            var CPos = TokL.CPosFromStringpos( cursor_pos ) ;
+            var CPos = TokL.CPosFromStringpos( (int)cursor_pos ) ;
             
             PTok AC_Tok = CPos.AC_tok();
 
@@ -221,12 +238,9 @@ namespace MainGrammar { // todo maybe own namespace
             var AST = MG.RunRX ( StrippedA , EVTest.TestMG1.TestStart /* <- fixme , temporary hack  */  ,  out rest ); 
             if ( rest ) return noAC_happend ;                     // RX Grammar could not parse 
 #endif 
-            NamedNode AST ;
-            try {
-                AST = TranslateEntry.Scope( StrippedL , GE , TR_lhs);
-            } catch ( Exception ) {
-                return noAC_happend; 
-            }
+            NamedNode AST = GetAst( str_in ) ;
+            if ( AST == null ) return noAC_happend ;
+            
             NamedNode AC_Node = null;
             try { 
                 AC_Node = AST.Leafs().Where( nn => (nn as MG.TermNode).tok == AC_Tok ).First();
