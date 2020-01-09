@@ -23,23 +23,24 @@ namespace SuggestionTree {
 
 
     /*
-        this MembK stuff is the only thing that makes SuggTree depend on CoreGrammar 
-        ... but i don't know where else to put it  
+        dual use structure 
+        for both indicating the concrete kind of a MemberInfo, as well as a filter on possible membIs
     */
-   #if true 
+ 
     [Flags]
     public enum MembK_E {
-        _val = 1 , _ref  = 2 ,_prop = 4 , _special = 8 
+        _val = 1 , _ref  = 2 ,_prop = 4 , _special = 12 , _special_filter = 8 ,  _any = 15
     }
     public struct MembK {
         static HashSet<MemberInfo> SpecialProps = new HashSet<MemberInfo>();
         static MembK () {
             BindingFlags bi = BindingFlags.Public | BindingFlags.Instance ;
-#if !fakeSuggTree
+            #if !fakeSuggTree
             SpecialProps.Add( typeof(MeshRenderer).GetProperty("material",bi) ) ;
-#endif
+            #endif
         }
         public MembK_E E ;
+
         public MembK ( MemberInfo mi ) {
             if ( mi is PropertyInfo ) {
                 if ( SpecialProps.Contains( mi ) ) E = MembK_E._special;
@@ -51,46 +52,19 @@ namespace SuggestionTree {
                 throw new ArgumentException () ;
             }
         }
-        // remove dependency to MainGrammar types ( PTokE ) 
-        // in the future probably remove the whole MembK-filtering stuff from SuggTree altogether 
+        public bool match_filter ( MembK filter ) => (E & filter.E ) != 0 ;
 
-        /*
-        public MainGrammar.PTokE OpE () {
-            switch ( E ) {
-                case MembK_E._val: return MainGrammar.PTokE.OP_dot;
-                case MembK_E._ref: return MainGrammar.PTokE.OP_star;
-                case MembK_E._prop: return MainGrammar.PTokE.OP_percent;
-                case MembK_E._special: return MainGrammar.PTokE.OP_special_prop;
-                default: throw new ArgumentException();
-            }
-        }
-        */
+        // boiler 
+        public static MembK Any() => new MembK { E = MembK_E._any  };
+        public static MembK Ref() => new MembK { E = MembK_E._ref  };
+        public static MembK Val() => new MembK { E = MembK_E._val  };
+        public static MembK Prop() => new MembK { E = MembK_E._prop  };
+        public static MembK Special() => new MembK { E = MembK_E._special  };
+
     }
 
-    /*
-        Frage: 
-            - warum passiert dieses MembK-filtering ueberhaupt im SuggTree? 
-    */
 
-    public struct MembK_Filter {
-        public static MembK_Filter Any = new MembK_Filter { E = MembK_E._val | MembK_E._ref | MembK_E._prop | MembK_E._special };
-        public MembK_E E ;
-        // remove dependency to MainGrammar types 
-        // in the future probably remove the whole MembK-filtering stuff from SuggTree altogether 
-        /*
-        public MembK_Filter( MainGrammar.PTokE PE ) {
-            switch ( PE ) {
-                case MainGrammar.PTokE.OP_dot:          E = MembK_E._val | MembK_E._ref | MembK_E._prop | MembK_E._special ; break;
-                case MainGrammar.PTokE.OP_star:         E = MembK_E._ref ;                                                   break;
-                case MainGrammar.PTokE.OP_percent:      E = MembK_E._prop | MembK_E._special;                                break;
-                case MainGrammar.PTokE.OP_special_prop: E = MembK_E._special;                                                break;
-                default: throw new ArgumentException();
-            }
-        }
-        */
-        public bool matches ( MembK other ) { return (E & other.E) != 0;  }
-    }
-    #endif 
+ 
 
     public static class SuggTAdapter {
         
@@ -107,13 +81,13 @@ namespace SuggestionTree {
 
         
 
-        public static MemberInfo[] MembAC ( Type T , string arg  ) { return MembAC( T, arg , MembK_Filter.Any ); }
-        public static MemberInfo[] MembAC ( Type T , string arg ,  MembK_Filter filter ) {
+        public static MemberInfo[] MembAC ( Type T , string arg  ) { return MembAC( T, arg , MembK.Any() ); }
+        public static MemberInfo[] MembAC ( Type T , string arg ,  MembK filter ) {
             return MembAC_Impl(T,arg,filter);
         }
 
-        public static Type MembType_Exact  ( Type T , string arg   ) { return MembType_Exact( T , arg , MembK_Filter.Any ); }
-        public static Type MembType_Exact  ( Type T , string arg , MembK_Filter kind_filter  ) {
+        public static Type MembType_Exact  ( Type T , string arg   ) { return MembType_Exact( T , arg , MembK.Any() ); }
+        public static Type MembType_Exact  ( Type T , string arg , MembK kind_filter  ) {
             return MembType_Exact_Impl( T , arg , kind_filter );
         }
 
@@ -128,12 +102,12 @@ namespace SuggestionTree {
          } }
 #else
         
-        public static MemberInfo[] MembAC ( Type T , string arg ,  MembK_Filter filter ) {
+        public static MemberInfo[] MembAC ( Type T , string arg  ) {
 
             throw new NotImplementedException();
 
         }
-        public static Type MembType_Exact  ( Type T , string arg , MembK_Filter mk_filter  ) {
+        public static Type MembType_Exact  ( Type T , string arg   ) {
 
             throw new NotImplementedException();
 
@@ -191,7 +165,7 @@ namespace SuggestionTree {
             
         }
 
-        static Type MembType_Exact_Impl  ( Type T , string arg , MembK_Filter mk_filter  ) {
+        static Type MembType_Exact_Impl  ( Type T , string arg , MembK mk_filter  ) {
             
             var MembSugg = GetMembSG ( T) ; 
             var res     = MembSugg.FindSingle( arg , exact_query:true );
@@ -199,7 +173,7 @@ namespace SuggestionTree {
 
             MemberInfo mi = res.suggs[0].val.payload; 
             MembK kind = new MembK(mi);
-            if ( ! mk_filter.matches( kind )) throw new TypingException();
+            if ( ! mk_filter.match_filter( kind )) throw new TypingException();
             
             if ( mi is FieldInfo )    return (mi as FieldInfo).FieldType;
             if ( mi is PropertyInfo ) return (mi as PropertyInfo).PropertyType; 
@@ -222,11 +196,11 @@ namespace SuggestionTree {
         }
 
 
-        static MemberInfo[] MembAC_Impl ( Type T , string arg ,  MembK_Filter filter ) {
+        static MemberInfo[] MembAC_Impl ( Type T , string arg ,  MembK filter ) {
             
             var SG  = GetMembSG( T ) ;
             var res = SG.FindSingle( arg , exact_query:false ) ;
-            MemberInfo[] R =  res.suggs.Select ( sugg => sugg.val.payload ).Where( (MemberInfo mi) => filter.matches(new MembK( mi ))  ).ToArray();
+            MemberInfo[] R =  res.suggs.Select ( sugg => sugg.val.payload ).Where( (MemberInfo mi) => filter.match_filter(new MembK( mi ))  ).ToArray();
             return R;
         }
 

@@ -48,7 +48,7 @@ namespace Shell {
                     return ShellParserGlue.Colorize( str_in ) ; 
                 },
                 AC              = ( str_in , offs ) => {
-                    var req_ac = new AC_Req { arg = str_in , offs = (uint)offs };
+                    var req_ac = new AC_Req { arg = str_in , offs = offs };
                     AC_Resp resp =   ShellNetworkGlue.AC ( req_ac ) ; 
                     
                     return resp;
@@ -63,7 +63,9 @@ namespace Shell {
                 },
                 AC = (str_in , offs ) => {
                     #if haveServerTypes
-                    var op_resp = Operations.AC ( str_in , (uint)offs , DummyInstances.GE_TestStartRX , DummyInstances.DummyTransLHS );
+                    // hackk 
+                    Func<string, ParserComb.NamedNode> foo = (_str) => { throw new NotImplementedException() ; };
+                    var op_resp = Operations.AC ( str_in , offs , foo );
                     return OperationsNetworkMap.OpAC_resp_to_Net_AC_resp( op_resp ).NLSend();
                     #endif
 

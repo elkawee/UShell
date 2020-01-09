@@ -92,7 +92,7 @@ namespace ParserComb {
 
             origWS.is_valid = false ;
         }
-        public CPosC SplitWS ( CPosC CP_at , Tok tok  ) {
+        public CPosC SplitWS ( CPosC CP_at , Tok tok  ) {         // returned new CPos is a the end of the inserted node
             if ( ! CP_at.isValid( this ) ) throw new Exception();
             if ( ! CP_at.isWS )            throw new Exception();
             var nu_node = new NodeTok { tok = tok } ;
@@ -102,6 +102,9 @@ namespace ParserComb {
         }
 
         #region public interface 
+        /*
+            some of these guys invalidate CPos, ( SplitWS unlinks+invalidates  the token CPos sits on ) 
+        */
         public void InsertTokAfterNode( NodeBase N , NodeTok nodeTok ) {
             if ( N == End ) throw new Exception();
             var R = N.right;
@@ -113,12 +116,17 @@ namespace ParserComb {
             InsertTokAfterNode(N , new NodeTok { tok  = tok } );
         }
 
-        public void InsertAfterCPos ( CPosC pos , Tok tok  ) {
-            if ( pos.isWS ) SplitWS ( pos , tok );
-            else InsertTokAfterNode ( pos.N , tok );
+        public CPosC InsertAfterCPos ( CPosC pos , Tok tok  ) {
+            if ( pos.isWS ){
+                return SplitWS(pos, tok);
+            } else { 
+                // todo probably sanity check if "pos" is at end of token and throw otherwise 
+                InsertTokAfterNode ( pos.N , tok );
+                return CPosAtEndOfTok( tok );
+            }
         }
-
-        NodeTok findTok ( Tok target ) {
+        // Todo rewrite InsertTokAfterNode to TokAfterTok - and not expose this function at all 
+        public NodeTok findTok ( Tok target ) {
             for ( NodeBase N = Start ; N != End ; N = N.right ) {
                 if ( N is NodeTok && object.ReferenceEquals( (N as NodeTok ).tok , target )) {
                     return (NodeTok) N ;

@@ -42,29 +42,23 @@ namespace MainGrammar {
     }
 
 
-    public class MainGrammar : Parser<PTok> {
+    public class MainGrammar : ParserTM<PTok,PTokE> {
         public class NoACPossible : Exception { }  // typing and other exceptions in RX productions 
         public class TypingException : Exception { public TypingException(string arg ) :base(arg ){} } 
 
         #region type_complete
-        class TermP_C : TerminalMatch_PI_C {
-            public PTokE E;
-            public override bool match ( PTok other ) {
-                return E == other.E;
-            }
-        }
-        static PI TermP ( PTokE E ) { return new TermP_C { E = E } ; }
+        static MainGrammar() { TokMatch = ( tok , ptoke ) => tok.E == ptoke ; }
         #endregion
 
+        // as callbacks, because these things need typing to be done beforehand. Typing design details would radiate into this otherwise 
         public interface ACable { }
       
         public interface ACableMemb : ACable {
-            Func<MemberInfo[]> ACMembTypingCallback {get;set;}
-            
+            // warum nicht einfach  :: callback -> type  , und den ganzen SuggTree/MembFilter-Kram hier drin? 
+            Func<Type> ACMembTypingCallback {get;set;}
         }
-      /*  public class ACableTypeNode : NamedNode,ACable {
-            public Func< SGA.typeAC_alt[] > AC_Type;
-        }*/
+        public interface ACableTypeNmae : ACable {  // typename completion is context free, in a sense. No callback needed
+        }
 
         #region decl
 
@@ -88,6 +82,16 @@ namespace MainGrammar {
             public enum kindE { any , val_field , ref_field , property };
             public kindE kind = kindE.any;
             public string name ;
+
+            public static kindE kindE_from_PTokE ( PTokE ptokE ) {  // this does not destinguish between prop and special_prop 
+                switch ( ptokE ) {
+                    case PTokE.OP_dot:          return kindE.val_field;
+                    case PTokE.OP_star:         return kindE.ref_field; 
+                    case PTokE.OP_percent:      return kindE.property;
+                    case PTokE.OP_special_prop: return kindE.property;
+                    default: throw new Exception();
+                }
+            }
             
             public override void build() {
                 
@@ -95,12 +99,7 @@ namespace MainGrammar {
                     kind = kindE.any;
                     name = TermPay( children[1]);
                 } else if ( children.Length == 3 ) {       // qualified 
-                    switch ( TermEnum(children[1]) ) {
-                        case PTokE.OP_dot:     kind= kindE.val_field; break;
-                        case PTokE.OP_star:    kind= kindE.ref_field; break;
-                        case PTokE.OP_percent: kind= kindE.property; break;
-                        default: throw new Exception();
-                    }
+                    kind = kindE_from_PTokE ( TermEnum( children[1] ) );
                     name = TermPay( children[2] );
                 } else throw new Exception();
             }
@@ -109,6 +108,7 @@ namespace MainGrammar {
                                                         OR ( TermP ( PTokE.OP_dot ) ,
                                                              TermP ( PTokE.OP_star ) ,  
                                                              TermP ( PTokE.OP_percent ),
+                                                             TermP ( PTokE.OP_special_prop ),
                                                              EPSILON()
                                                             ),
                                                         TermP ( PTokE.CS_name ) ));
@@ -125,36 +125,45 @@ namespace MainGrammar {
         // -- RX --
 
         public class MemANodeRX : MemANode, ACableMemb {
-            public Func<MemberInfo[]> ACMembTypingCallback {get;set;}
+            public Func<Type> ACMembTypingCallback {get;set;}
+            public PTok refineOPTok = null ;
+            public PTok nameTok     = null ; 
+            public PTok initialOpTok = null ;
             public override void build () {
-                kind = kindE.any; // todo replace kind-from-token-derivation below 
+                initialOpTok = TermTok ( children[0] );
+                kind = kindE.any; 
                 if ( children.Length == 1 ) {
                     name = ""; 
                     kind = kindE.any ;
                     return ;
                 }
-                PTok Tok1 = (children[1] as TermNode).tok;
+                PTok Tok1 = TermTok( children[1] );
                 if ( children.Length == 2 ) {
                     if (Tok1.E == PTokE.CS_name) {
                         name = Tok1.pay;
                         kind = kindE.any ;
+                        nameTok = Tok1;
                     } else {
-                        name = "" ;
-                        // todo derive kind 
+                        name = "";
+                        kind = kindE_from_PTokE( TermEnum ( children[1] ));
+                        refineOPTok = Tok1;
                     }
                     return ;
                 }
-                PTok Tok2 = (children[2] as TermNode).tok;
+                
                 if ( children.Length == 3 ) {
-                    name = Tok2.pay ;
-                    // todo derive kind 
+                    name  = TermPay( children[2] );
+                    kind = kindE_from_PTokE ( TermEnum( children[1] ));
+
                 }
             }
         }
         public static PI MemARX = Prod<MemANodeRX> (  SEQ ( TermP ( PTokE.OP_dot ) ,
                                                         OR(  OR ( TermP ( PTokE.OP_dot ) ,
                                                                   TermP ( PTokE.OP_star ) ),
-                                                            EPSILON()),
+                                                                  TermP ( PTokE.OP_percent ),
+                                                                  TermP ( PTokE.OP_special_prop ),
+                                                                  EPSILON()),
                                                         OR( TermP ( PTokE.CS_name ),
                                                             EPSILON())
                                                      ));
@@ -227,12 +236,14 @@ namespace MainGrammar {
                 if ( children.Length >  2 ) throw new Exception();
             }
         }
+
         public static PI RG_Edge = Prod<RG_EdgeNode> ( SEQ ( MemAVT , OR ( AssignVT , EPSILON() ) ));
 
-        public class TypeNameNode : NamedNode {
+        public class TypeNameNode : NamedNode,ACableTypeNmae {
             public string name;
             public override void build() => name = TermPay( children[1] );
         }
+        // TODO qualified typenames, a la :      :Namespace/TN1/TN2    ( / instead of . for disambiguation with member access ) 
         public static PI TypeName = Prod<TypeNameNode> ( SEQ ( TermP( PTokE.OP_colon ) , TermP( PTokE.CS_name ) ) ) ;
         
 
@@ -255,25 +266,36 @@ namespace MainGrammar {
 
 
         #region FAN
+        public static PI_defer  Fan = MKProdDefer<FanNode>();
 
         public class FanElemNode : NamedNode {
             public RG_EdgeNode [] rgEdges;
             public override void build() => rgEdges = children.Select( ch => ( RG_EdgeNode) ch ).ToArray();  
         }
-        public static PI FanElem = Prod<FanElemNode> ( PLUS ( RG_Edge ));
+        public static PI FanElem = Prod<FanElemNode> ( PLUS ( OR ( RG_Edge , SG_Edge , Fan ) ));
 
         public class FanNode : NamedNode {
             public FanElemNode [] elems ;
             public override void build() => elems = children.Where( ch => ! (ch is TermNode )) .Select( ch => ( FanElemNode) ch ).ToArray();  
         }
-        public static PI Fan = Prod<FanNode>( 
+        
+        static             PI  _Fan = SETProdDefer( Fan , 
             SEQ ( 
                 TermP( PTokE.curlyBRL ) ,
-                OR (    SEQ ( FanElem , STAR ( SEQ ( TermP( PTokE.OP_comma ) , FanElem ))),
-                        EPSILON() ),
+                SEQ ( FanElem , STAR ( SEQ ( TermP( PTokE.OP_comma ) , FanElem ))),
                 TermP( PTokE.curlyBRR) ) );
+        
 
+        #endregion
 
+        #region Start
+
+        public class StartRXNode : NamedNode {
+            SG_EdgeNode startSG => children.Length > 0 ? ( SG_EdgeNode ) children[0] : null ;
+        }
+
+        public static PI StartRX = Prod< StartRXNode > ( SEQ ( SG_Edge , STAR( FanElem ) ) ) ;
+        
         #endregion 
 
 
@@ -286,6 +308,9 @@ namespace MainGrammar {
         }
         public static string TermPay ( NamedNode N ) {
             try { return (N as TermNode).tok.pay ;} catch ( Exception ) { throw new NNShapeException() ;}
+        }
+        public static PTok TermTok ( NamedNode N ) {
+            try { return (N as TermNode).tok ;} catch ( Exception ) { throw new NNShapeException() ;}
         }
 
         #endregion 

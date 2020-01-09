@@ -186,7 +186,7 @@ namespace TranslateAndEval {
 #if !mock_NamedNode_Types
         public MemberInfo [] MembAC () {
             // TODO copy pasta from OldGrammar 
-            var memb_kind_from_syntax  = MembK_Filter.Any ;// new MembK_Filter( (children[0] as TermNode).tok.E );
+            var memb_kind_from_syntax  = MembK.Any() ;// new MembK_Filter( (children[0] as TermNode).tok.E );
             
             try {
                 return SGA.MembAC(CH_in.ttuple.PayT,MAVTNode.name, memb_kind_from_syntax);

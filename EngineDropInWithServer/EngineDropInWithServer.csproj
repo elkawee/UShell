@@ -81,8 +81,11 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /B /Y $(TargetDir)\*.dll $(SolutionDir)\UnityTestproject\Assets\DropIN ; 
-del $(SolutionDir)\UnityTestproject\Assets\DropIN\UnityEngine.dll</PostBuildEvent>
+    <PostBuildEvent>copy /B /Y $(TargetDir)*.dll $(SolutionDir)UnityTestproject\Assets\DropIN ; 
+del $(SolutionDir)UnityTestproject\Assets\DropIN\UnityEngine.dll
+
+rem changed trailing \'s post directory macros -- guess they changed the semantics from 2015 to 2017. 
+rem meaning this prob. doesnt work in 2015 anymore</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

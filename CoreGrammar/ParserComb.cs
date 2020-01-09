@@ -79,7 +79,7 @@ namespace ParserComb {
 
     public class Parser<Token>  {
 
-        public struct itm {
+        public struct alt {
             public AnonPINode n; public IEnumerable<Token> toks;
             public override string ToString() { return new {
                 n = n.GetType().IsGenericType ? n.GetType().GetGenericArguments()[0].Name : n.GetType().Name,
@@ -92,40 +92,53 @@ namespace ParserComb {
         public class OrC:PI {
             public PI PI1, PI2;
             public OrC ( PI PI1 , PI PI2 ) { this.PI1 = PI1 ; this.PI2 = PI2; can_epsilon = PI1.can_epsilon || PI2.can_epsilon ; }
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks ,  bool suppress_epsilon = false) {
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks ,  bool suppress_epsilon = false) {
                 IEnumerable iter1 = PI1.iter(toks , suppress_epsilon);
-                foreach(itm item in iter1) yield return item;
+                foreach(alt item in iter1) yield return item;
                 IEnumerable iter2 = PI2.iter(toks , suppress_epsilon);
-                foreach(itm item in iter2) yield return item;
+                foreach(alt item in iter2) yield return item;
             }
         }
         // todo : i assume OR is associative ? 
-        public static OrC OR(PI PI1,PI PI2)               { return new OrC (  PI1,PI2  ); }
-        public static OrC OR(PI PI1,PI PI2,PI PI3)        { return OR(PI1 , OR (PI2 , PI3 )); }
-        public static OrC OR(PI PI1,PI PI2,PI PI3,PI PI4) { return OR(PI1 , OR (PI2 , OR ( PI3, PI4) )); }
+        public static OrC OR(PI PI1,PI PI2)                        { return new OrC (  PI1,PI2  ); }
+        public static OrC OR(PI PI1,PI PI2,PI PI3)                 { return OR(PI1 , OR (PI2 , PI3 )); }
+        public static OrC OR(PI PI1,PI PI2,PI PI3,PI PI4)          { return OR(PI1 , OR (PI2 , OR ( PI3, PI4) )); }
+        public static OrC OR(PI PI1,PI PI2,PI PI3,PI PI4 , PI PI5) { return OR(PI1 , OR (PI2 , OR ( PI3, OR( PI4, PI5 )) )); }
         
 
 
         public abstract class PI {
-            abstract public IEnumerable<itm> iter(IEnumerable<Token> toks , bool suppress_epsilon = false);
+            abstract public IEnumerable<alt> iter(IEnumerable<Token> toks , bool suppress_epsilon = false);
             public bool can_epsilon;
         }
 
         public class NamedPI_C<NamedNodeT>:PI where NamedNodeT: NamedNode , new() {
             public PI subPI ;
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks , bool suppress_epsilon = false) {
-                foreach (itm it in subPI.iter( toks , suppress_epsilon ) ){
-                    var N = new TaggedPINode<NamedNodeT> { childrenA = new AnonPINode [] { it.n } } ;
-                    yield return new itm { n = N , toks = it.toks };
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks , bool suppress_epsilon = false) {
+                foreach (alt it in subPI.iter( toks , suppress_epsilon ) ){
+                    var N = new TaggedPINode<NamedNodeT> { childrenA = new AnonPINode [] { it.n } } ;                // for each alt, yield one wrapper node ( type-tagged ) with the subPI's node as the only chlid 
+                    yield return new alt { n = N , toks = it.toks };
                 }
             }
         }
         public static PI Prod<NamedNodeT> ( PI pi ) where NamedNodeT : NamedNode , new () {
             return new NamedPI_C<NamedNodeT> { subPI = pi , can_epsilon =pi.can_epsilon } ;
         } 
-
-
-
+        public abstract class PI_defer : PI {public PI deferred_subPI ; }
+        public class NamedPIDefer_C<NamedNodeT> : PI_defer where NamedNodeT : NamedNode , new () {
+            
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks , bool suppress_epsilon = false) {
+                if ( deferred_subPI == null ) throw new Exception("trying to run a deferred Prod without assigning it");
+                foreach (alt it in deferred_subPI.iter( toks , suppress_epsilon ) ){
+                    var N = new TaggedPINode<NamedNodeT> { childrenA = new AnonPINode [] { it.n } } ;                // for each alt, yield one wrapper node ( type-tagged ) with the subPI's node as the only chlid 
+                    yield return new alt { n = N , toks = it.toks };
+                }
+            }
+            
+        }
+        public static NamedPIDefer_C<NamedNodeT> MKProdDefer<NamedNodeT> ( ) where NamedNodeT : NamedNode , new () => new NamedPIDefer_C<NamedNodeT>();
+        public static PI                         SETProdDefer            (PI_defer deferredPI , PI rhs_PI ) { deferredPI.deferred_subPI = rhs_PI ; return rhs_PI ; }
+        
 
         #region Terminals 
         public class TermNode : NamedNode {
@@ -135,77 +148,37 @@ namespace ParserComb {
 
         public class TermPI_C : PI {
             public Token alpha;  
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks , bool suppress_epsilon = false ) {
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks , bool suppress_epsilon = false ) {
                 if ( ! toks.Any()) yield break;
                 // hmm? there is auto boxing for immediate types ? 
                 if ( toks.First().Equals ( alpha ) )
-                    yield return  new itm { n = new TaggedPINode<TermNode> { payTN = toks.First() } , toks = toks.Skip(1) } ;
+                    yield return  new alt { n = new TaggedPINode<TermNode> { payTN = toks.First() } , toks = toks.Skip(1) } ;
             }
         }
         public static TermPI_C Term( Token alpha ) { return new TermPI_C { alpha = alpha , can_epsilon = false } ; }
         
-        public abstract class TerminalMatch_PI_C : PI { /* todo less cryptic name */ 
-            public abstract bool match ( Token _ );
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks , bool suppress_epsilon = false ) {
-                if ( ! toks.Any()) yield break;
-                Token cand = toks.First();
-                if ( match (cand ) ) yield return new itm { n = new TaggedPINode<TermNode> { payTN = cand }, toks = toks.Skip(1) }.NLSend() ;
-            }
-        }
+      
+
+        
+
         #endregion
 
+      
         #region SEQ
-        /*
-        public class Seq_LG_PI_C : PI {
-            struct tbl_entry { public AnonPINode node_L ; public IEnumerator<itm> rator_R ;}
-            public PI sub_L , sub_R ;
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks) {
-                var table = new LinkedList<tbl_entry> () ;
-                foreach ( var itm_L in sub_L.iter(toks ) ) {
-                    table.AddLast( new tbl_entry { node_L = itm_L.n , rator_R = sub_R.iter( itm_L.toks ).GetEnumerator() } );
-                }
-                while ( table.Any() ) {
-                    for ( LinkedListNode<tbl_entry> tbl_it = table.First ; tbl_it != null ; ) {
-                        var rator_R = tbl_it.Value.rator_R;
-                        if ( rator_R.MoveNext() ) {              // if RHS iter has a match yield a compound node 
-                            var itmR = rator_R.Current;
-                            var node_L = tbl_it.Value.node_L;
-                            yield return new itm {
-                                n    = new AnonPINode { childrenA = new [] { node_L , itmR.n } } ,
-                                toks = itmR.toks
-                            };
-                            tbl_it = tbl_it.Next;
-                        } else {                                // else kick LHS cand match - all possible RHS matches are exhausted 
-                            LinkedListNode<tbl_entry> dummy = tbl_it ;
-                            tbl_it = tbl_it.Next;
-                            table.Remove( dummy );
-                        }
-                    }
-                }
-            }
-        }
-        
-        public static Seq_LG_PI_C SEQ ( PI p1 , PI p2 ) {
-            return new Seq_LG_PI_C { sub_L = p1 , sub_R = p2 } ; 
-        }
-        public static Seq_LG_PI_C SEQ ( PI p1 , PI p2 , PI p3 ) {
-            return SEQ ( p1 , SEQ ( p2 , p3 ));
-        }
-        */
-
+      
         public class Seq_RG_PI_C : PI {
             public PI sub_L , sub_R;
             public Seq_RG_PI_C ( PI sub_L , PI sub_R ) {
                 this.sub_L  = sub_L ; this.sub_R = sub_R ; 
                 can_epsilon = sub_L.can_epsilon && sub_R.can_epsilon;
             }
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks , bool suppress_epsilon = false ) {
-                foreach ( itm itm1 in sub_L.iter( toks , suppress_epsilon && can_epsilon)  ) {
-                    foreach ( itm itm2 in sub_R.iter ( itm1.toks , suppress_epsilon && can_epsilon) ) {
-                        yield return new itm {
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks , bool suppress_epsilon = false ) {
+                foreach ( alt itm1 in sub_L.iter( toks , suppress_epsilon && can_epsilon)  ) {
+                    foreach ( alt itm2 in sub_R.iter ( itm1.toks , suppress_epsilon && can_epsilon) ) {
+                        yield return new alt {
                             n    = new AnonPINode { childrenA = new [] { itm1.n , itm2.n } },
                             toks =  itm2.toks
-                        }.NLSend("SeqItm");
+                        };
                     }
                 }
             }
@@ -221,52 +194,6 @@ namespace ParserComb {
 
         #region STAR
 
-        /* 
-        public class STAR_PI_C : PI {
-            public PI sub_PI;
-
-            public IEnumerable<itm> rator_transpose ( IEnumerable<IEnumerable<itm>> L_arg ) {
-                var L = new LinkedList<IEnumerator<itm>>( L_arg.Select( subL => subL.GetEnumerator() ));
-                while ( L.Any() ) {
-                    for ( LinkedListNode<IEnumerator<itm>> L_iter = L.First ; L_iter != null ; ) {
-                        var curr_rator = L_iter.Value;
-                        if ( curr_rator.MoveNext() ) {
-                            yield return curr_rator.Current ;
-                            L_iter = L_iter.Next;
-                        } else {
-                            var dummy = L_iter; 
-                            L_iter = L_iter.Next;
-                            L.Remove( dummy ) ;
-                        }
-                    }
-                    
-                }
-            }
-            
-            public IEnumerable<itm> starStep( IEnumerable<itm> L_in ) {
-                IEnumerable<IEnumerable<itm>> dummyApplied = L_in.Select ( 
-                    ( it_L_in ) => 
-                        sub_PI.iter( it_L_in.toks ).Select( (itm it_sub) => 
-                            new itm { n = new AnonPINode { childrenA = new [] { it_L_in.n ,it_sub.n } }, toks = it_sub.toks } ) );
-                List<itm> L_self = rator_transpose ( dummyApplied ).ToList() ;
-                if ( ! L_self.Any() ) yield break;
-                foreach ( var it in starStep ( L_self ) ) yield return it ;   // want maximum greedyness 
-                foreach ( var it in L_self ) yield return it ; 
-                    
-            }
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks) {
-                if ( sub_PI is STAR_PI_C ) throw new Exception ( "A** might not terminate" );
-                // hack ( epsilon matches in inner star ) solving this properly prob. needs a whole pre processing phase  
-                // it's also not enough : star ( seq ( star  , ... )) and star ( or ( ... , star , ... )) has the same problem 
-                var L = sub_PI.iter(toks).ToList();
-                foreach ( itm it in starStep( L )) yield return it;
-                foreach ( itm it in L ) yield return it ; 
-                yield return new itm { n = new AnonPINode () , toks = toks };  // yield epsilon at the very last  
-            }
-        }
-
-        public static PI STAR ( PI sub_PI ) { return new STAR_PI_C { sub_PI = sub_PI } ; }
-        */
         public static PI STAR ( PI sub_pi ) { return OR( PLUS ( sub_pi )  , EPSILON() ); }
         
         #endregion
@@ -275,11 +202,11 @@ namespace ParserComb {
         public class PLUS_PI_C : PI {
             public PI sub_PI;
             public PLUS_PI_C ( PI sub_PI ) { this.sub_PI = sub_PI ; can_epsilon = sub_PI.can_epsilon ; }
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks,bool suppress_epsilon = false) {
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks,bool suppress_epsilon = false) {
                 foreach ( var itm1 in sub_PI.iter( toks , suppress_epsilon: true ) ) {
                     foreach ( var itm2 in iter( itm1.toks , suppress_epsilon: true ) ) {
                         yield return 
-                            new itm { 
+                            new alt { 
                                 n = new AnonPINode { childrenA = new [] { itm1.n , itm2.n } },
                                 toks = itm2.toks
                             };
@@ -298,9 +225,9 @@ namespace ParserComb {
 
         #region EPSILON 
         public class EPSILON_PI_C : PI {
-            public override IEnumerable<itm> iter(IEnumerable<Token> toks,bool suppress_epsilon = false) {
+            public override IEnumerable<alt> iter(IEnumerable<Token> toks,bool suppress_epsilon = false) {
                 if ( suppress_epsilon ) yield break ;
-                else yield return new itm {
+                else yield return new alt {
                     n = new AnonPINode { childrenA = new AnonPINode[0] },
                     toks = toks
                 };
@@ -322,7 +249,7 @@ namespace ParserComb {
             yields all matching alternatives, including those that do not fully consume the input 
         */
         public static IEnumerable<parse_match> RUN_with_rest ( PI startProd , IEnumerable<Token> toks ) {
-            foreach ( itm it in startProd.iter(toks ) ) {
+            foreach ( alt it in startProd.iter(toks ) ) {
                 TaggedPINodeBase start_ast = ( TaggedPINodeBase ) it.n;     // todo : potentially throws . atm there is no PI subtype to denote "only PIs that yield tagged nodes"
                 NamedNode        NN        = start_ast.gen();
                 buildRec( NN );
@@ -333,6 +260,31 @@ namespace ParserComb {
 
      
     }
+
+    public abstract class ParserTM<Tok,TokM> : Parser<Tok> { 
+        
+
+        public static Func<Tok,TokM,bool> TokMatch ;  // as Delegate because can't override statics - introducing instances would be even more ass backwards 
+
+        public class TerminalMatch_PI_C : PI { /* todo less cryptic name */ 
+            public TokM other;
+            public override IEnumerable<alt> iter(IEnumerable<Tok> toks , bool suppress_epsilon = false ) {
+                if ( ! toks.Any()) yield break;
+                Tok cand = toks.First();
+                bool matched = false ;
+                try { 
+                    matched = TokMatch (cand , other );
+                } catch ( NullReferenceException ) { throw new Exception("to use TermP, 'TokMatch' delegate must be set" ); }
+
+                if ( matched ) yield return new alt { n = new TaggedPINode<TermNode> { payTN = cand }, toks = toks.Skip(1) }/* .NLSend() */ ;
+            }
+        }
+        public static PI TermP ( TokM other ) {
+            return new TerminalMatch_PI_C { other = other } ;
+        }
+    }
+
+    
 
     
 

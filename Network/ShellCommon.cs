@@ -38,11 +38,11 @@ namespace ShellCommon {
 
     public class AC_Req : REQ_Base {
         public string arg;
-        public uint offs;
+        public int offs;
     }
     public class AC_Resp : RESP_Base {
         public string [] suggs ;
-        public uint nu_offs;
+        public int nu_offs;
         public ShellToken [] toks;
         
         public bool error;
