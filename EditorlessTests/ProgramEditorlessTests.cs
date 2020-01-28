@@ -15,6 +15,7 @@ using TranslateAndEval;
 
 using Tok = MainGrammar.PTok ;
 using MG = MainGrammar.MainGrammar;
+using MGRX = MainGrammar.MainGrammarRX;
 
 
 
@@ -45,9 +46,9 @@ namespace EditorlessTests {
             //LexxAndRun( ".*foo -> x <- y  -> z " );
             Console.WriteLine(LexxAndParse(".*foo",MG.MemA));
             Console.WriteLine(LexxAndParse(".*foo -> x ",MG.MemAVT));
-            Console.WriteLine(LexxAndParse(".*foo -> x ",MG.MemAVT_RX));
-            Console.WriteLine(LexxAndParse("..str",MG.MemAVT_RX));
-            Console.WriteLine(LexxAndParse("..str -> foo",MG.MemAVT_RX));
+            Console.WriteLine(LexxAndParse(".*foo -> x ",MGRX.MemAVT_RX));
+            Console.WriteLine(LexxAndParse("..str",MGRX.MemAVT_RX));
+            Console.WriteLine(LexxAndParse("..str -> foo",MGRX.MemAVT_RX));
 
             Console.WriteLine(LexxAndParse("..str -> foo",TestMG1.TestStartRX));
             Console.WriteLine("----------- whoooo ------- " );
@@ -187,7 +188,7 @@ namespace EditorlessTests {
             public AssignVTNode assignvt_node { get { return children.Length > 1 ?(AssignVTNode) children[1] : null ; } }
         }
         public static PI TestStart = Prod<MemA_andOptAssign> ( SEQ ( MG.MemAVT , MG.AssignVT ));
-        public static PI TestStartRX = Prod<MemA_andOptAssign> ( SEQ ( MG.MemAVT_RX , OR ( MG.AssignVT , EPSILON() )));
+        public static PI TestStartRX = Prod<MemA_andOptAssign> ( SEQ ( MGRX.MemAVT_RX , OR ( MG.AssignVT , EPSILON() )));
     }
 
      public class TestTR : TranslationUnit {

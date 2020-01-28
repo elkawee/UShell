@@ -40,12 +40,12 @@ public class Compilat {
 
 
 public class GrammarEntry {
-    public MG.PI StartProd;
+    public ParserComb.Parser<PTok>.PI StartProd;
     public Func<ParserComb.NamedNode,TranslationUnit> TR_constructor;
 }
 
 public class TranslateLHS { // Aux information for translate - opaque type to pass around in other modules 
-    public preCH preCH_LHS;        // <- pretty sure that's not needed anymore 
+    public preCH preCH_LHS;        // <- pretty sure that's not needed anymore --- yes it is, shut up! a query from the phantom root has an implicit LHS-type, everything else does not 
     public CH_closedScope scope;         // dunno if type choice is optimal here 
 }
 
@@ -93,15 +93,44 @@ public static class TranslateEntry {
         };
     }
 
-    public static ParserComb.NamedNode Scope(IEnumerable<PTok> toksIN,CH_closedScope scopeIN,MG.PI StartProd,Func<NamedNode,TranslationUnit> TRInstantiate, out TranslationUnit TRU ) {
+    public static ParserComb.NamedNode Scope(
+            IEnumerable<PTok> toksIN,
+            CH_closedScope scopeIN,
+            MG.PI StartProd,Func<NamedNode,TranslationUnit> TRInstantiate, 
+            out TranslationUnit TRU ) 
+     {
         var matches = MG.RUN_with_rest(StartProd,toksIN).ToArray();
         if(matches.Length.NLSend("matchlen") == 0 || matches[0].rest.Any()) throw new Exception(); // no match , or the most greedy match could not consume whole input 
-        NamedNode NN = matches[0].N;
+
+        // MAJOR-TODO !!  ambigous grammars with epsilon consuming productions can yield 
+        //                an INFINITE number of alternatives , if there is a .ToArray() somewhere -> CRASH !! 
+
+        NamedNode NN = matches[0].N;                 
         TranslationUnit TR = TRInstantiate(NN);
         var deltaScope = new preCH_deltaScope ( scopeIN );
         var combinedScope = TR.scope(deltaScope);
         TRU = TR;
         return NN;
+    }
+    // adding more clusterfuck 
+
+    public static ParserComb.NamedNode ScopePartial ( 
+            IEnumerable<PTok> toks,
+            GrammarEntry GE , 
+            TranslateLHS TLHS ) 
+    {
+        var matches = ParserComb.Parser<PTok>.RUN_with_rest( GE.StartProd , toks ) ;
+        if ( ! matches.Any() ) throw new Exception ( "can't parse") ;
+        var match = matches.First();
+        // don't care about whether there are unconsumed tokens for the most greedy match, do the scoping for the part that did yield a parse 
+        NamedNode AST_root = match.N;
+        
+        TranslationUnit TU =  GE.TR_constructor ( AST_root ); // <- TranslationUnit generation from RX_TUs fills in AC_typing callbacks as a side effect 
+        TU.scope( TLHS.scope ) ;                              // <- fills eventual holes in preCH chains from scope - if possible ( see AssignTR.scope() ) 
+
+        // TU is thrown away ,used only for its side effects, the TUs still linger in memory due to references in preCHs - garbage collected when scope and AST_root is dumped 
+        return AST_root;
+
     }
 
     public static ParserComb.NamedNode Scope(IEnumerable<PTok> toksIN,GrammarEntry GE,TranslateLHS exLHS) {

@@ -19,6 +19,11 @@ namespace TranslateAndEval {
     {
         public abstract VBoxTU[] VBoxTUs{ get; }
 
+        // not quite sure yet
+        // this is for TURX .... probably most sensible to swap the inheritance arrow between TU > TURX 
+        // Concrete TUs already use something like this, but by convention only rather then interface - this might actually be the better solution 
+        //public virtual preCH preCH_out => VBoxTUs.Last().preCH_out;  
+
         // translation phases
         public          preCH_deltaScope scope ( CH_closedScope   c ) { return scope ( new preCH_deltaScope (c ) ); }
         public abstract preCH_deltaScope scope ( preCH_deltaScope c ) ;

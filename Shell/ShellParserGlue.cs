@@ -42,26 +42,7 @@ namespace ShellCommon {
             }
         }
 
-        public static IEnumerable<ShellToken> ConvertTokens ( IEnumerable<PTokBase> parser_toks ) {
-            foreach ( var ptok in parser_toks ) {
-                if ( ptok is PTokWhitespace ) {
-                    yield return new ShellToken { id = ShellTokenE.Whitespace ,orig = SUH.NSpace( (int)(ptok as PTokWhitespace).len ) , col = ConsoleColor.Gray  };
-                } else if ( ptok is PTok ) {
-                    
-                    PTok P = ptok as PTok ;
-                    
-                    yield return new ShellToken {  orig = P.pay , col = Color(P.E ) };
-                } else 
-                    throw new ArgumentException();
-            }
-        }
-
-        public static IEnumerable<ShellToken> Colorize ( string str_in ) {
-            
-            PTokBase [] toks = Lexer.Tokenize( str_in , relaxed: true) ;
-            return ConvertTokens( toks );
-        }
-
+   
 
     }
 }

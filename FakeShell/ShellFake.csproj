@@ -43,6 +43,10 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\external_DLL\UnityEngine.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Shell\ProgramShell.cs">
@@ -65,17 +69,25 @@
       <Project>{58b3d810-2b74-47cc-ba77-962b1593dc8a}</Project>
       <Name>EditorlessTests</Name>
     </ProjectReference>
+    <ProjectReference Include="..\EngineDropInWithServer\EngineDropInWithServer.csproj">
+      <Project>{8a6e36be-a630-4a49-bd53-3470e01d4e32}</Project>
+      <Name>EngineDropInWithServer</Name>
+    </ProjectReference>
     <ProjectReference Include="..\EngineDropIn\EngineDropInCommon.csproj">
       <Project>{186ff7b0-8c80-4783-a675-0cf340e0e779}</Project>
       <Name>EngineDropInCommon</Name>
     </ProjectReference>
-    <ProjectReference Include="..\FakeNetworkCommonTypes\NetworkCommonTypes_Fake.csproj">
-      <Project>{3d65f525-bc7c-4f9e-a2e8-07f7e9a7a10e}</Project>
-      <Name>NetworkCommonTypes_Fake</Name>
+    <ProjectReference Include="..\Network\NetworkCommonTypes.csproj">
+      <Project>{11e35e73-6d67-45d9-aec6-31bfa6989f15}</Project>
+      <Name>NetworkCommonTypes</Name>
     </ProjectReference>
     <ProjectReference Include="..\NLSendPimping\NLSendPimping\NLSendPimping.csproj">
       <Project>{d2de2c93-7546-483d-9050-f557cd5eaf33}</Project>
       <Name>NLSendPimping</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SuggTree\SuggTree.csproj">
+      <Project>{be58c842-8ac5-4ba4-95ca-24efe44086e9}</Project>
+      <Name>SuggTree</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

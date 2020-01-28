@@ -45,8 +45,8 @@
   <ItemGroup>
     <Compile Include="ConcreteOpCodes.cs" />
     <Compile Include="ConcreteTranslationUnits.cs" />
+    <Compile Include="ConcreteTranslationUnitsRX.cs" />
     <Compile Include="EvaluatorTests_and_random_fux0ring.cs" />
-    <Compile Include="OperationsTodoFindAMoreExpressiveName.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Scopes.cs" />
     <Compile Include="SerializationTypeMapping.cs" />

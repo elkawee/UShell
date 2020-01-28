@@ -39,31 +39,11 @@ public static class OperationsNetworkMap {
         }
     }
 
-    static ConsoleColor Color ( PTokE tokE ) {
-            try {
-                return PTok_to_SHTok[tokE];
-            } catch (Exception ) {
-                return ConsoleColor.Gray;
-            }
-        }
 
-      public static IEnumerable<ShellToken> ConvertTokens ( IEnumerable<PTokBase> parser_toks ) {
-            foreach ( var ptok in parser_toks ) {
-                if ( ptok is PTokWhitespace ) {
-                    yield return new ShellToken { id = ShellTokenE.Whitespace ,orig = SUH.NSpace( (int)(ptok as PTokWhitespace).len ) , col = ConsoleColor.Gray  };
-                } else if ( ptok is PTok ) {
-                    
-                    PTok P = ptok as PTok ;
-                    
-                    yield return new ShellToken {  orig = P.pay , col = Color(P.E ) };
-                } else 
-                    throw new ArgumentException();
-            }
-        }
 #endif
 #endregion
 
-#if haveServerTypes
+#if null
     public static ShellCommon.AC_Resp OpAC_resp_to_Net_AC_resp (    Operations.OpAC_res op_AC_resp ) {
         try {
            var conv_toks = ConvertTokens( op_AC_resp.nu_toks ).ToArray(); 

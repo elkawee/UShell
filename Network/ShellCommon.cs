@@ -4,32 +4,11 @@ using Newtonsoft.Json;
 using System.IO;
 using Newtonsoft.Json.Linq;
 
+using PTokBase = MainGrammar.PTokBase;
+
 namespace ShellCommon {
 
-
-    public enum ShellTokenE {
-            PlainIdentifier,
-            Field,
-            Prop,
-            DescImmediate,
-            DescGreedy,
-            DescNonGreedy,
-            Whitespace,
-            ColonSeparator,
-            SG_Operator,
-            SG_Filter,
-            Error
-    }
-
-
-    public struct ShellToken {
-            public int s_offs, e_offs;              // <- remove 
-            public string orig;
-            public ShellTokenE id;                  // <- remove 
-            public ConsoleColor col ;
-            //public ShellToken( Token from )     { s_offs = from.s_offs ; e_offs = from.e_offs ; orig = from.orig ; id = from.id ; }
-            public override string ToString ()  { return new { type = id , orig=orig }.ToString() ;}
-    }
+    
 
     public abstract class CMD_Base { }
 
@@ -40,24 +19,28 @@ namespace ShellCommon {
         public string arg;
         public int offs;
     }
+
+
     public class AC_Resp : RESP_Base {
-        public string [] suggs ;
-        public int nu_offs;
-        public ShellToken [] toks;
-        
-        public bool error;
-        public string err_string;
+        public string []       suggs        = new string [0];
+        public int             nu_offs      = 0;
+        public PTokBase []     toks         = new PTokBase[0];
+        public string          msg          = null;
+        public bool            toks_changed = false;
+
+
         public override string ToString () {
             return new {
                 suggs = string.Join(",",suggs),
-                nu_offs = nu_offs ,
+                nu_offs ,
                 toks = "(... todo)",
-                error = error ,
-                err_string = err_string
+                err_string = msg
             }.ToString();
         }
     }
 
+
+    
 
     
 

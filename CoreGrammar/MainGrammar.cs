@@ -57,7 +57,7 @@ namespace MainGrammar {
             // warum nicht einfach  :: callback -> type  , und den ganzen SuggTree/MembFilter-Kram hier drin? 
             Func<Type> ACMembTypingCallback {get;set;}
         }
-        public interface ACableTypeNmae : ACable {  // typename completion is context free, in a sense. No callback needed
+        public interface ACableTypeName : ACable {  // typename completion is context free, in a sense. No callback needed
         }
 
         #region decl
@@ -124,51 +124,7 @@ namespace MainGrammar {
 
         // -- RX --
 
-        public class MemANodeRX : MemANode, ACableMemb {
-            public Func<Type> ACMembTypingCallback {get;set;}
-            public PTok refineOPTok = null ;
-            public PTok nameTok     = null ; 
-            public PTok initialOpTok = null ;
-            public override void build () {
-                initialOpTok = TermTok ( children[0] );
-                kind = kindE.any; 
-                if ( children.Length == 1 ) {
-                    name = ""; 
-                    kind = kindE.any ;
-                    return ;
-                }
-                PTok Tok1 = TermTok( children[1] );
-                if ( children.Length == 2 ) {
-                    if (Tok1.E == PTokE.CS_name) {
-                        name = Tok1.pay;
-                        kind = kindE.any ;
-                        nameTok = Tok1;
-                    } else {
-                        name = "";
-                        kind = kindE_from_PTokE( TermEnum ( children[1] ));
-                        refineOPTok = Tok1;
-                    }
-                    return ;
-                }
-                
-                if ( children.Length == 3 ) {
-                    name  = TermPay( children[2] );
-                    kind = kindE_from_PTokE ( TermEnum( children[1] ));
 
-                }
-            }
-        }
-        public static PI MemARX = Prod<MemANodeRX> (  SEQ ( TermP ( PTokE.OP_dot ) ,
-                                                        OR(  OR ( TermP ( PTokE.OP_dot ) ,
-                                                                  TermP ( PTokE.OP_star ) ),
-                                                                  TermP ( PTokE.OP_percent ),
-                                                                  TermP ( PTokE.OP_special_prop ),
-                                                                  EPSILON()),
-                                                        OR( TermP ( PTokE.CS_name ),
-                                                            EPSILON())
-                                                     ));
-
-        public static PI MemAVT_RX = Prod<MemAVTNode> ( SEQ ( MemARX , DeclStar));
         
 
         #endregion
@@ -239,21 +195,24 @@ namespace MainGrammar {
 
         public static PI RG_Edge = Prod<RG_EdgeNode> ( SEQ ( MemAVT , OR ( AssignVT , EPSILON() ) ));
 
-        public class TypeNameNode : NamedNode,ACableTypeNmae {
-            public string name;
-            public override void build() => name = TermPay( children[1] );
+        public class TypeNameNode : NamedNode,ACableTypeName {
+            
+            public string [] names ;
+            public override void build() => names = children.Where( nn => (nn as TermNode).tok.E == PTokE.CS_name ).Select ( TermPay ).ToArray();
         }
         // TODO qualified typenames, a la :      :Namespace/TN1/TN2    ( / instead of . for disambiguation with member access ) 
-        public static PI TypeName = Prod<TypeNameNode> ( SEQ ( TermP( PTokE.OP_colon ) , TermP( PTokE.CS_name ) ) ) ;
+        public static PI TypeName = Prod<TypeNameNode> ( SEQ ( TermP( PTokE.OP_colon ) , TermP( PTokE.CS_name ) , 
+                                                         STAR ( SEQ ( TermP ( PTokE.OP_slash ) , TermP( PTokE.CS_name  ) ))
+                                                        ) ) ;
         
 
         public class SG_EdgeNode : NamedNode {
             public enum kindE { immediate , all }
             public kindE kind;
-            public string typefilter = null ;
+            public string [] typefilter = null ;
             public override void build() {
                 kind = TermEnum( children[0] ) == PTokE.OP_GT ? kindE.immediate : kindE.all ;
-                if ( children.Length == 2 )  typefilter = (children[1] as TypeNameNode ).name;
+                if ( children.Length == 2 )  typefilter = (children[1] as TypeNameNode ).names;
                 if ( children.Length >  2 )  throw new Exception();
             }
         }
@@ -418,6 +377,7 @@ namespace MainGrammar {
                     else if ( payl == "$" ) op.E = PTokE.OP_dollar;
                     else if ( payl == "#" ) op.E = PTokE.OP_sharp;
                     else if ( payl == "," ) op.E = PTokE.OP_comma;
+                    
                     else throw new Exception();
                     R.Add( op);
                     continue;

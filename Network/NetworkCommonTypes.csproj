@@ -48,6 +48,12 @@
     <Compile Include="ShellCommon.cs" />
     <Compile Include="ShellNetworkGlue.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreGrammar\CoreGrammar.csproj">
+      <Project>{60795826-abda-4afa-bdda-2f0fc3b1657e}</Project>
+      <Name>CoreGrammar</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

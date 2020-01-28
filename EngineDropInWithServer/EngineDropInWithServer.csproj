@@ -46,6 +46,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Operations_AC.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ShellServerHook.cs" />
   </ItemGroup>
