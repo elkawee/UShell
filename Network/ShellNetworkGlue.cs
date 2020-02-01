@@ -10,10 +10,10 @@ using System.Text;
 
 
 using D = System.Diagnostics.Debug;
-using Newtonsoft.Json;
 
-
-
+using MainGrammar;
+using LightJson;
+using NLSPlain;
 
 namespace ShellCommon {
 
@@ -48,9 +48,92 @@ namespace ShellCommon {
     }
 #endif
 
-    #region TCPAdapter
-    public class JsonTCPAdapter {
+    // veeeeeery ad hoc 
+    // veery unsafe 
+
+    public static class LightJsonExtensions {
+        public static LightJson.JsonObject addTypeTag ( LightJson.JsonObject jObj , CMD_Base cmd_base ) {
+            return jObj.Add( "cmd" , cmd_base.GetType().Name ) ;
+        }
+        public static LightJson.JsonValue LJ_Value ( this CMD_Base cmd_base ) { 
+            if ( cmd_base is AC_Req ) return  (cmd_base as AC_Req).LJ_Value(); // don't fully understand the sorcery behind this - there is an implicit cast operator for JsonObject -> JsonValue 
+            if ( cmd_base is AC_Resp ) return  (cmd_base as AC_Resp).LJ_Value();
+            throw new NotImplementedException();
+        } 
+
+        public static LightJson.JsonValue LJ_Value( this AC_Req ac_req ) {
+            LightJson.JsonObject Jobj = new LightJson.JsonObject();
+            Jobj.Add("arg" , ac_req.arg );
+            Jobj.Add("offs", ac_req.offs );
+            return addTypeTag( Jobj , ac_req );
+        }
+
+        public static LightJson.JsonValue LJ_Value( this PTokBase[] toks ) {
+            var Jarr = new JsonArray();
+            foreach ( var tok in toks ) {
+                var obj = new JsonObject();
+                if ( tok is PTokWhitespace ) {
+                    obj["E"] = "Whitespace";
+                    obj["len"] = (tok as PTokWhitespace).len;
+                } else { 
+                    var ptok = (PTok) tok ;
+                    obj["E"]   = ptok.E.ToString();
+                    obj["pay"] = ptok.pay;
+                }
+                Jarr.Add( obj ) ;
+            }
+            return Jarr;
+        }
+
+        public static JsonValue LJ_Value ( this AC_Resp ac_resp ) {
+            var Jobj = new JsonObject();
+            var suggs_Jarr = new JsonArray();
+            foreach ( var sugg in ac_resp.suggs ) suggs_Jarr.Add( sugg ) ;
+
+            Jobj["suggs"]        = suggs_Jarr;
+            Jobj["nu_offs"]      = ac_resp.nu_offs;
+            Jobj["toks"]         = ac_resp.toks.LJ_Value();
+            Jobj["msg"]          = ac_resp.msg;
+            Jobj["toks_changed"] = ac_resp.toks_changed;
+            return addTypeTag ( Jobj, ac_resp );
+        }
+
+        public static IEnumerable <PTokBase> toks_form_JSonValue( JsonArray jArr ) {
+            foreach ( JsonObject jObj in jArr ) {
+                if ( jObj["E"] == "Whitespace" ) yield return new PTokWhitespace { len = jObj["len"] };
+                else { 
+                    PTokE E = (PTokE) Enum.Parse( typeof ( PTokE ), jObj["E"] ) ;
+                    yield return new PTok { E = E , pay = jObj["pay"] } ;
+                }
+            }
+        }
+
+        public static CMD_Base CMD_from_JSonValue ( LightJson.JsonObject cmd_jObj  ) { 
+            string type_tag = cmd_jObj["cmd"] ;
+            if ( type_tag == "AC_Req" ) 
+                return new AC_Req   { 
+                    arg   = cmd_jObj["arg"] , 
+                    offs  = cmd_jObj["offs"] 
+                } ;
+            
+            if ( type_tag == "AC_Resp" ) 
+                return new AC_Resp { 
+                    suggs         = cmd_jObj["suggs"].AsJsonArray.Select( s => s.AsString).ToArray(),
+                    nu_offs       = cmd_jObj["nu_offs"],
+                    toks          = toks_form_JSonValue( cmd_jObj["toks"] ).ToArray(),
+                    msg           = cmd_jObj["msg"],
+                    toks_changed  = cmd_jObj["toks_changed"]
+                };
+
+            throw new NotImplementedException();
+        }
+        
+    
+    }
+
+    #if legacy_dump_paste_dingens
         // stupid hack to get the reader to only block if there really are no more bytes to read 
+        // this was originally for NewtonJson Reader which insisted on reading whole blocks if possible and thus blocking on the TCP-stream if the packet was too short 
         public class NoBlockReader:StreamReader {
                 public NoBlockReader(string path) : base(path) {
                 }
@@ -82,40 +165,103 @@ namespace ShellCommon {
                 public NoBlockReader(Stream stream,Encoding encoding,bool detectEncodingFromByteOrderMarks,int bufferSize) : base(stream,encoding,detectEncodingFromByteOrderMarks,bufferSize) {
                 }
                 public override int Read(char[] buffer,int index,int count) {
-                    //Console.WriteLine("read in :" + index + " : " + count );
+                    Console.WriteLine("read in :" + index + " : " + count );
                     int bytesRead =  base.Read(buffer,index,1);
                 
                     string s = "";
                     for ( int i =index ; i< index + bytesRead ; i++ ) s += buffer[i];
-                    //Console.WriteLine("read    :" + bytesRead + "(" + s + ")" );
+                    Console.WriteLine("read    :" + bytesRead + "(" + s + ")" );
                     return bytesRead;
                 }
             }
+
+    #endif 
+
+
+    #region TCPAdapter
+    public class LightJsonTCPAdapter {
+        
+        public class BlockingPeekReader : TextReader { 
+            /*
+                since there seems to be no sensible way of making a Thread wait on a Socket
+
+                Luckily the API surface of TextReader, that is actually used by LightJson is pretty small
+                this thing buffers a single char for Peek()ing --> thereby rendering Peek() blocking, by actually attempting to read 
+
+                ( LightJson Scanner interprets Peek() == -1 as end of input (as MSDN claimes it would indicate ) , thus errors out  
+                  but StreamReader also returns -1 if it would block upon reading (from ILSPy mscorlib 2.0 StreamReader )  ) 
+            */
+            public NetworkStream nw_stream ;
+            public bool have_char = false;
+            public int  buffer_char = 0;
+            public BlockingPeekReader ( NetworkStream stream  ) { 
+                nw_stream = stream;
+            }
+            public override int Read() {
+                if ( have_char ) { have_char = false ; return buffer_char ; }
+                else return nw_stream.ReadByte();
+            }
+            public override int Peek() { 
+                if ( have_char ) return buffer_char;
+                else { 
+                    buffer_char = nw_stream.ReadByte();
+                    have_char = true;
+                    return buffer_char;
+                }
+            }
+            // just in case ... 
+            public override int Read(char[] buffer, int index, int count)       => throw new NotImplementedException();
+            public override int ReadBlock(char[] buffer, int index, int count)  => throw new NotImplementedException();
+            public override string ReadLine()                                   => throw new NotImplementedException();
+            public override string ReadToEnd()                                  => throw new NotImplementedException();
+            
+
+        }
+
     
         public TcpClient TCPcl;
-        static JsonTextReader JRD;
-        static JsonTextWriter JWR;
-        NoBlockReader STrd ;
-        StreamWriter STwr ;
-        JsonSerializer ser = new JsonSerializer();
-        public JsonTCPAdapter( TcpClient connectedClient ) {
+       
+        public BlockingPeekReader netwStreamAdapter ;
+        public StreamWriter  streamWriter ;
+
+        LightJson.Serialization.JsonReader LJ_Reader ;
+        LightJson.Serialization.JsonWriter LJ_Writer ;
+        
+        public LightJsonTCPAdapter( TcpClient connectedClient ) {
             if ( !connectedClient.Connected ) throw new Exception () ; 
+            if ( !connectedClient.Client.Blocking ) throw new Exception() ;
+
+
             TCPcl = connectedClient;
-            STrd = new NoBlockReader(TCPcl.GetStream());
-            STwr = new StreamWriter(TCPcl.GetStream());
-            JRD = new JsonTextReader(STrd);
-            JRD.SupportMultipleContent = true;
-            JWR = new JsonTextWriter(STwr);
+            netwStreamAdapter = new BlockingPeekReader(TCPcl.GetStream());
+            streamWriter = new StreamWriter(TCPcl.GetStream());
+            LJ_Reader = new LightJson.Serialization.JsonReader ( netwStreamAdapter );
+            LJ_Writer = new LightJson.Serialization.JsonWriter ( streamWriter ); 
+           
         }
-        public void Write( CMD_Base cmd ) {
-            var wrap = new CMD_Wrap ( cmd ) ;
-            ser.Serialize(JWR,wrap );
-            JWR.Flush();
+        public void Write( CMD_Base cmd , bool debug=true  ) {
+            if ( debug ) {                                        // use intermediate StringStream to Debug Dump before sending to network 
+                StringWriter strWR =  new StringWriter();
+                var  dummy_LJ_Writer = new LightJson.Serialization.JsonWriter( strWR );
+                WriteInternal( cmd , dummy_LJ_Writer ) ;
+                streamWriter.Write( strWR.ToString().NLSend("WROTE| ") ) ;
+            } else { 
+                WriteInternal ( cmd , LJ_Writer );
+            }
+            streamWriter.Flush();    // TODO guesswork , i want immediate genereation of TCP packet at this point. MSDN is pretty obtuse in this regard 
+            
         }
+
+        public void WriteInternal ( CMD_Base cmd_base ,   LightJson.Serialization.JsonWriter LJ_Writer ) { // with explicit stream adapter for convenient unit tesing
+            LJ_Writer.Write ( cmd_base.LJ_Value() ) ;
+        }
+
         public CMD_Base Read () {
-            JRD.Read();
-            CMD_Wrap wrap =  ser.Deserialize<CMD_Wrap>(JRD);
-            return wrap.cmd;
+            return ReadInternal( LJ_Reader );
+        }
+
+        public CMD_Base ReadInternal (LightJson.Serialization.JsonReader LJ_Reader ) {       // with explicit stream adapter for convenient unit tesing
+            return LightJsonExtensions.CMD_from_JSonValue( LJ_Reader.ReadJsonValue() );
         }
     }
     
@@ -134,13 +280,13 @@ namespace ShellCommon {
       
        
 
-        static JsonTCPAdapter adapter;
+        static LightJsonTCPAdapter adapter;
 
         public static void Init() {
             var EP = new IPEndPoint( IPAddress.Loopback , 13333 );
             var CL     = new TcpClient();
             CL.Connect(EP);
-            adapter = new JsonTCPAdapter( CL );
+            adapter = new LightJsonTCPAdapter( CL );
         
         }
         public static AC_Resp AC ( AC_Req req ) {

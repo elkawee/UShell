@@ -31,10 +31,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\external_DLL\Newtonsoft.Json.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -52,6 +48,14 @@
     <ProjectReference Include="..\CoreGrammar\CoreGrammar.csproj">
       <Project>{60795826-abda-4afa-bdda-2f0fc3b1657e}</Project>
       <Name>CoreGrammar</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\NLSendPimping\NLSendPimping\NLSendPimping.csproj">
+      <Project>{d2de2c93-7546-483d-9050-f557cd5eaf33}</Project>
+      <Name>NLSendPimping</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PatchedLightJson\LightJson\PatchedLightJson.csproj">
+      <Project>{3bc85e8b-8a37-4015-b4a8-2d973f8622f1}</Project>
+      <Name>PatchedLightJson</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

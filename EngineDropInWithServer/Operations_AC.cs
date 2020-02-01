@@ -65,14 +65,14 @@ namespace MainGrammar { // todo maybe own namespace
                 return new FinalizedResponse( resp );
             }
 
-            public FinalizedResponse MembACNoSubst( IEnumerable<mi_sugg> suggs ) {
+            public FinalizedResponse MembACNoSubst   ( IEnumerable<mi_sugg> suggs ) {
                 var resp = new ShellCommon.AC_Resp { 
                     toks_changed = false,
                     suggs = mi_suggs_to_string( suggs )
                 };
                 return new FinalizedResponse( resp ) ; 
             }
-            public FinalizedResponse MembACWithSubst( IEnumerable<mi_sugg> suggs , PTokBase[] new_toks , int nu_offs ) {
+            public FinalizedResponse MembACWithSubst ( IEnumerable<mi_sugg> suggs , PTokBase[] new_toks , int nu_offs ) {
                 var resp = new ShellCommon.AC_Resp { 
                     toks_changed = true,
                     suggs = mi_suggs_to_string( suggs ),
@@ -81,14 +81,14 @@ namespace MainGrammar { // todo maybe own namespace
                 };
                 return new FinalizedResponse( resp ) ; 
             }
-            public FinalizedResponse TypeACNoSubst( IEnumerable<SGA.typeAC_alt> alts ) {
+            public FinalizedResponse TypeACNoSubst   ( IEnumerable<SGA.typeAC_alt> alts ) {
                 var resp = new ShellCommon.AC_Resp {
                     toks_changed = false,
                     suggs = type_alts_to_string( alts )
                 };
                 return new FinalizedResponse( resp );
             }
-            public FinalizedResponse TypeACWithSubst( IEnumerable<SGA.typeAC_alt> alts , PTokBase[] new_toks , int nu_offs ) {
+            public FinalizedResponse TypeACWithSubst ( IEnumerable<SGA.typeAC_alt> alts , PTokBase[] new_toks , int nu_offs ) {
                 var resp = new ShellCommon.AC_Resp {
                     toks_changed = true,
                     suggs = type_alts_to_string( alts ),
@@ -284,7 +284,9 @@ namespace MainGrammar { // todo maybe own namespace
        
 
 
-        public static ShellCommon.AC_Resp AC ( ShellCommon.AC_Req shell_ac_request , Func<IEnumerable<PTokBase>,NamedNode> GetAst ) {
+        public static ShellCommon.AC_Resp AC (  ShellCommon.AC_Req shell_ac_request , 
+                                                Func<IEnumerable<PTokBase>,NamedNode> GetAst  // Shell needs to do its own tokenization 
+                                                ) {
             
             var RESPONDER = new Responder ( shell_ac_request );
             string  str_in     = shell_ac_request.arg ;

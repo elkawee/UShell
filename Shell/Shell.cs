@@ -57,6 +57,7 @@ namespace Shell {
             foreach ( var tok in _toks ) 
                 if      ( tok is PTokWhitespace ) _plain_string += SUH.NSpace( (tok as PTokWhitespace).len ) ;
                 else if ( tok is PTok )           _plain_string += (tok as PTok ).pay;
+                else if ( tok == null )           { _plain_string += "" ; "warnig null in tokens".NLSend(); } // TODO : policy decision 
                 else throw new NotImplementedException();                          // and never will 
             
         }

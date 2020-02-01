@@ -71,7 +71,7 @@ namespace InUnityTest1 {
             rootVBX   = new RootVBoxTR ( isDescAll );
 
             if(startNode.sg_edge_node.typefilter != null) {
-                typefilterVBX = new TypeFilterVBX_TU(rootVBX.preCH_out,new[] { startNode.sg_edge_node.typefilter } );
+                typefilterVBX = new TypeFilterVBX_TU(rootVBX.preCH_out,  startNode.sg_edge_node.typefilter  );
             }
 
             rg_edgeTU = new RG_EdgeTU ( 
@@ -101,7 +101,7 @@ namespace InUnityTest1 {
     public class NewBehaviourScript : MonoBehaviour {
 
 	    void Start () {
-            foreach ( var name in SGA.MembAC( typeof ( Transform ) , "p" , SuggestionTree.MembK_Filter.Any ).Select( mi => mi.Name )  ) { 
+            foreach ( var name in SGA.MembAC( typeof ( Transform ) , "p" , SuggestionTree.MembK.Any() ).Select( mi => mi.Name )  ) { 
 		        Debug.Log ( name ) ;
             }
 

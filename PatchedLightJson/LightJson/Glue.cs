@@ -80,7 +80,7 @@ namespace LightJson {
 
         public static JsonValue ParseWithRest ( string str_in , out string rest ) {
             var strRD = new StringReader( str_in ) ; 
-            var jRD   = new JsonReader(strRD ) ; 
+            var jRD   = new JsonReader  ( strRD  ) ; 
             var R  = jRD.ReadJsonValue();
             rest = strRD.ReadToEnd();
             return R;

@@ -1,8 +1,8 @@
 ﻿using System;
 
-using Newtonsoft.Json;
+using System.Linq;
 using System.IO;
-using Newtonsoft.Json.Linq;
+
 
 using PTokBase = MainGrammar.PTokBase;
 
@@ -14,6 +14,8 @@ namespace ShellCommon {
 
     public abstract class REQ_Base : CMD_Base { }
     public abstract class RESP_Base : CMD_Base { }
+
+    #region AC 
 
     public class AC_Req : REQ_Base {
         public string arg;
@@ -33,53 +35,20 @@ namespace ShellCommon {
             return new {
                 suggs = string.Join(",",suggs),
                 nu_offs ,
-                toks = "(... todo)",
-                err_string = msg
+                toks = string.Join(" " , toks.Select( t => t.ToString()).ToArray()),
+                msg
             }.ToString();
         }
     }
+    #endregion
+
+    #region EVAL 
+    public class EVAL_Req : REQ_Base {} 
+    public class EVAL_Resp : RESP_Base {}
+    #endregion
 
 
-    
 
-    
-
-     public class WrapConverter : JsonConverter {
-            public override bool CanConvert(Type objectType) {
-                return objectType == typeof ( CMD_Wrap ) ; 
-            }
-            public override object ReadJson(JsonReader reader,Type objectType,object existingValue,JsonSerializer serializer) {
-                JObject jo = JObject.Load( reader ) ;
-                CMD_Base base_cmd = null;
-                string  enm = jo["kind"].ToObject<string>();
-
-                if      ( enm == "AC_Req" )  base_cmd = jo["cmd"].ToObject<AC_Req>();
-                else if ( enm == "AC_Resp" ) base_cmd = jo["cmd"].ToObject<AC_Resp>();
-                else throw new NotImplementedException();
-                
-                return new CMD_Wrap ( base_cmd );
-            }
-            public override bool CanWrite
-            {
-                get { return false; }
-            }
-
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-            {
-                throw new NotImplementedException(); // won't be called because CanWrite returns false
-            }
-        }
-
-    [JsonConverter(typeof(WrapConverter))]
-    public class CMD_Wrap {
-        public CMD_Wrap ( CMD_Base payload ) {
-            kind = payload.GetType().Name ;
-            cmd = payload;
-        }
-        public string kind ;
-        public CMD_Base cmd ;
-    }
-    
 
 
 }

@@ -29,13 +29,19 @@ namespace MainGrammar {
     }
 
     public class PTokBase { }
-    public class PTokWhitespace : PTokBase { public int len ; }
+    public class PTokWhitespace : PTokBase { 
+        public int len ;
+        public override string ToString() => "WS|"+len;
+        
+    }
 
 
     public class PTok : PTokBase , TokLen {
         public PTokE E;
         public string pay;
-        public int len { get { return (int)pay.Length; } } 
+        public int len { get { return (int)pay.Length; } }
+        public override string ToString() => E.ToString()+"|"+pay;
+        
     }
     public class PTokJSON : PTok  {
         public object payJSON;

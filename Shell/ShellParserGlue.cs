@@ -22,27 +22,5 @@ namespace ShellCommon {
         }
     }
 
-    public class ShellParserGlue {
-
-        static Dictionary<PTokE,ConsoleColor > PTok_to_SHTok ;
-        static ShellParserGlue() {
-            PTok_to_SHTok = new Dictionary<PTokE, ConsoleColor>();
-            PTok_to_SHTok[PTokE.OP_GT] = ConsoleColor.Yellow;
-            PTok_to_SHTok[PTokE.OP_doubleGT] = ConsoleColor.Yellow;
-            PTok_to_SHTok[PTokE.OP_colon ]   = ConsoleColor.Yellow;
-            PTok_to_SHTok[PTokE.ErrT ]   = ConsoleColor.Red;
-            
-            // ....and so on 
-        }
-        static ConsoleColor Color ( PTokE tokE ) {
-            try {
-                return PTok_to_SHTok[tokE];
-            } catch (Exception ) {
-                return ConsoleColor.Gray;
-            }
-        }
-
-   
-
-    }
+ 
 }
