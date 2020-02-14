@@ -58,8 +58,28 @@ namespace ShellCommon {
         public static LightJson.JsonValue LJ_Value ( this CMD_Base cmd_base ) { 
             if ( cmd_base is AC_Req ) return  (cmd_base as AC_Req).LJ_Value(); // don't fully understand the sorcery behind this - there is an implicit cast operator for JsonObject -> JsonValue 
             if ( cmd_base is AC_Resp ) return  (cmd_base as AC_Resp).LJ_Value();
+
+            if ( cmd_base is EVAL_Req  ) return  (cmd_base as EVAL_Req ).LJ_Value();
+            if ( cmd_base is EVAL_Resp ) return  (cmd_base as EVAL_Resp).LJ_Value();
             throw new NotImplementedException();
         } 
+
+        public static JsonValue LJ_Value ( this EVAL_Req eval_req ) {  
+            var jObj = new JsonObject();
+            jObj["expr"] = eval_req.expr;
+            return addTypeTag( jObj , eval_req);
+        }
+        public static JsonValue LJ_Value ( this EVAL_Resp eval_resp ) { 
+            var jObj = new JsonObject();
+            jObj["success"] = eval_resp.success;
+            jObj["msg"]     = eval_resp.msg;
+
+            var result_arr = new JsonArray();
+            foreach ( var itm in eval_resp.result ) result_arr.Add( itm.ToString() ) ;  // quick-HACK ! TypeSerializationMapping also needs a Producer direction for this to be done all proper like 
+
+            jObj["result"]  = result_arr; 
+            return addTypeTag( jObj , eval_resp );
+        }
 
         public static LightJson.JsonValue LJ_Value( this AC_Req ac_req ) {
             LightJson.JsonObject Jobj = new LightJson.JsonObject();
@@ -124,6 +144,18 @@ namespace ShellCommon {
                     msg           = cmd_jObj["msg"],
                     toks_changed  = cmd_jObj["toks_changed"]
                 };
+            if ( type_tag == "EVAL_Req" ) {
+                return new EVAL_Req { 
+                    expr = cmd_jObj["expr"]
+                };
+            }
+            if ( type_tag == "EVAL_Resp" ) {
+                return new EVAL_Resp { 
+                    result  = cmd_jObj["result"].AsJsonArray.Select( s=>s.AsString ).ToArray(),
+                    msg     = cmd_jObj["msg"],
+                    success = cmd_jObj["success"]
+                };
+            }
 
             throw new NotImplementedException();
         }
@@ -292,6 +324,10 @@ namespace ShellCommon {
         public static AC_Resp AC ( AC_Req req ) {
             adapter.Write( req );
             return (AC_Resp)adapter.Read() ;
+        }
+        public static EVAL_Resp EVAL ( EVAL_Req req ) {
+            adapter.Write( req ) ;
+            return (EVAL_Resp)adapter.Read(); 
         }
 
 

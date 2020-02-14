@@ -12,7 +12,7 @@ namespace ShellCommon {
 
     public abstract class CMD_Base { }
 
-    public abstract class REQ_Base : CMD_Base { }
+    public abstract class REQ_Base : CMD_Base { }   // eventually these types are supposed to have some kind of UUID for matching req/resp pairs 
     public abstract class RESP_Base : CMD_Base { }
 
     #region AC 
@@ -43,8 +43,14 @@ namespace ShellCommon {
     #endregion
 
     #region EVAL 
-    public class EVAL_Req : REQ_Base {} 
-    public class EVAL_Resp : RESP_Base {}
+    public class EVAL_Req : REQ_Base {
+        public string expr ;
+    } 
+    public class EVAL_Resp : RESP_Base {
+        public bool             success   = true ;
+        public string           msg       = ""   ;
+        public System.Object [] result    = new System.Object[0];
+    }
     #endregion
 
 

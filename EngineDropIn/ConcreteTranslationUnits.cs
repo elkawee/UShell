@@ -12,10 +12,18 @@ using D = System.Diagnostics.Debug;
 using MG = MainGrammar.MainGrammar;
 using NLSPlain;
 
-//#if !mock_NamedNode_Types
+
+
+#if UnityEngineMock1
+using UnityEngine = UnityEngineMock1;
+using GameObject = UnityEngineMock1.GameObject;
+#else 
+using UnityEngine;
+#endif 
+
 using SuggestionTree;
 using SGA = SuggestionTree.SuggTAdapter;
-//#endif
+
 
 namespace TranslateAndEval {
 
@@ -210,7 +218,7 @@ namespace TranslateAndEval {
         public TypeFilterVBX_TU ( preCH preCH_in , string [] typefilter_names ) {
             this.backing_preCH_in = preCH_in;
             Func<TTuple> deferredTT = () => new TTuple {
-                PayT = SGA.QTN_Exact ( typefilter_names ) ,   // Todo TypeNameNode needs to support namespacing 
+                PayT = SGA.QTN_Exact ( typefilter_names ) ,   
                 isMulti = false
             } ;
             this.backing_preCH_out = new deferred_preCH( deferredTT , dataSrc: this ) ;
@@ -250,7 +258,60 @@ namespace TranslateAndEval {
         }
     }
 
+    public class SG_EdgeVBX_TU : VBoxTU_pIN_cOUT {  // dependend on in-Type , out-Type is always GameObject
+        public bool is_immediate;
+        public SG_EdgeVBX_TU ( preCH preCH_in , bool is_immediate ) {
+            this.is_immediate = is_immediate;
+            backing_preCH_in = preCH_in ;
+            if ( is_immediate ) {
+                backing_CH_out   = new TypedSingleCH<GameObject>();
+            } else { 
+                backing_CH_out   = new TypedMultiCH<GameObject>();
+            }
+        }
 
+        public override IEnumerable<OPCode> emit()
+        {
+            if ( is_immediate ) yield return OPGEN.MK_SG_immediate ( CH_in , CH_out );
+            else                yield return OPGEN.MK_OP_SG_all    ( CH_in , CH_out );
+        }
+
+        public override preCH_deltaScope scope(preCH_deltaScope c) => c;
+       
+    }
+
+    public class SG_EdgeTU : TranslationUnit
+    {
+        VBoxTU [] __VBoxTUs;
+        public override VBoxTU[] VBoxTUs => throw new NotImplementedException();
+        
+        public TypedCH CH_out => __VBoxTUs.Last().CH_out;
+        public preCH   preCH_in , preCH_out;
+        public bool    is_immediate;
+
+        public SG_EdgeTU ( preCH preCH_in , MG.SG_EdgeNode sg_edge_node ) {
+            this.preCH_in = preCH_in;
+
+            is_immediate = sg_edge_node.kind == MG.SG_EdgeNode.kindE.immediate;
+
+            var SG_VBX_TU = new SG_EdgeVBX_TU(preCH_in , is_immediate );
+
+            if ( sg_edge_node.typefilter == null ) {
+                __VBoxTUs = new [] { SG_VBX_TU } ;
+            } else { 
+                var typfilter_VBX_TU = new TypeFilterVBX_TU ( SG_VBX_TU.preCH_out , sg_edge_node.typefilter ) ;
+                __VBoxTUs = new VBoxTU[] { SG_VBX_TU , typfilter_VBX_TU };
+            }
+
+
+        }
+
+        public override IEnumerable<OPCode> emit() => __VBoxTUs.SelectMany( vbxTU => vbxTU.emit() );
+
+
+        public override preCH_deltaScope scope(preCH_deltaScope c) => c ; // 360
+
+    }
 
     public class FanElemTU:TranslationUnit {
         public readonly MG.FanElemNode fanElemNode ;

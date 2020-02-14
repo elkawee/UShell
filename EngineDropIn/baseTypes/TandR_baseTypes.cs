@@ -16,7 +16,10 @@ namespace TranslateAndEval {
     // (far goal is for any other Exceptions leaving to code outside this namespace  ==> BUG )
 
 
-    
+    /* basically encapsulation of arguments needed for TypedCH instantiation. ( and selecting which subtype to instantiate ) 
+        point being: that most of the code that deals with instantiating these guys, 
+        only passes this around and does not care what it looks like 
+        */
     public struct TTuple    { 
         // public Type BoxType ;   
         public bool isMulti ;       // it might be reasonable to introduce more Column-Types in this case preCH.Instantiate() needs changing too 
@@ -211,7 +214,7 @@ namespace TranslateAndEval {
     }
 
     public abstract class ColumnImpl<T,VBoxT> : Column<T> where VBoxT : VBox<T> /* , new () */ {
-        List<VBoxT> _boxes = new List<VBoxT>();
+        protected List<VBoxT> _boxes = new List<VBoxT>();
 
         // this would be an upcast ( VBox<T> =/= VBoxT ) if covariance was available 
         // because 3.5, upcast every element. Todo: faster version with VBoxSing/VBoxMulti return types in the concrete classes 
@@ -253,6 +256,12 @@ namespace TranslateAndEval {
         public override TypedCH<T>           CHT { get { return _CH; } }
         protected override VBoxMulti<T> CreateBox(VBox pred,T pay) {
             return new VBoxMulti<T> { _value = pay , _preds = new List<VBox> ( new [] { pred } ) };
+        }
+        public VBoxMulti<T> CreateBox( IEnumerable<VBox> preds , T pay ) {
+            return new VBoxMulti<T> { _value = pay , _preds = new List<VBox> ( preds ) };
+        }
+        public void AddVal( T _val , IEnumerable<VBox> pred_boxes ) {
+            _boxes.Add( CreateBox( pred_boxes , _val ));
         }
     }
 

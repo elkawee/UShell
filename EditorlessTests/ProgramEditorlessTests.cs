@@ -224,7 +224,7 @@ namespace EditorlessTests {
     }
 
     public class TestcasesLHSType {
-        public string strMem ; 
+        public string strMem  ; 
         public string strMem2 ; 
         public string strMem3 ; 
         public int    intMem1 ; 

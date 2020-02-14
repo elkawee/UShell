@@ -22,6 +22,7 @@ namespace TypeMapping {
 
     public class Mapping {
         public class ConsumerBase {
+            // for assignment     lhs <- @some_json_literal 
             public Type LHS_Type;
             public Type expected_RHS_Type;
             public object F;  // needs to be castable into Func<expected_RHS_Type,LHS_Type> but 3.5 doesn't have variance, so there is no common base type to any closed generic type

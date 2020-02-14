@@ -5,7 +5,13 @@ using System.Collections.Generic;
 using System.Linq;
 
 using System.Reflection;
+
+#if UnityEngineMock1
+using UnityEngine = UnityEngineMock1;
+using GameObject = UnityEngineMock1.GameObject;
+#else 
 using UnityEngine;
+#endif 
 using SObject = System.Object;
 
 using D = System.Diagnostics.Debug;
@@ -86,6 +92,7 @@ namespace TranslateAndEval {
             }
         }
     }
+
     public static partial class OPGEN {
         public static OPCode MK_MemA_RefRef( TypedCH CH_L , TypedCH CH_R , FieldInfo FI ) {
             var completeType = typeof( OP_MemA_RefRef<,> ).MakeGenericType( new [] { CH_L.ttuple.PayT , CH_R.ttuple.PayT } );
@@ -195,37 +202,22 @@ namespace TranslateAndEval {
         }
     }
 
-    public class OP_filter<T>:OPCode {  // untested
-        public TypedCH<T>       CH_in;
-        public TypedSingleCH<T> CH_out;
-        public Column<T>        Col_in;
-        public ColumnSingle<T>  Col_out;
-        public Func<T,bool>     filterfunc;
-        public OP_filter ( TypedCH<T> CH_in , TypedSingleCH<T> CH_out , Func<T,bool> filterfunc ) {
-            this.CH_in  = CH_in;
-            this.CH_out = CH_out;
-            this.filterfunc = filterfunc;
-        }
-        public override void fill(MemMapper MM) {
-            Col_in  = MM.get( CH_in );
-            Col_out = MM.get( CH_out );
-        }
-        public override void eval(Context c) {
-            foreach ( var box_in in Col_in.boxesT ) {
-                if ( filterfunc( box_in.valueT() ) ) Col_out.AddVal( box_in.valueT() , box_in ) ;
-            }
-        }
-    }
+    public static partial class OPCode_AUX {
+        static IEnumerable<T>          NonInactiveObjectsOf<T>() where T:UnityEngine.Object 
+            => Resources.FindObjectsOfTypeAll<T>              ();
 
-    public static partial class OPGEN {
-        public static OPCode MK_filter ( TypedCH CH_in , TypedCH CH_out , SObject filterfunc ) {
-            var Tparam = CH_in.ttuple.PayT ;
-            var closedType = typeof ( OP_filter<>).MakeGenericType( new [] { Tparam } );
-            return (OPCode)Activator.CreateInstance( closedType , new SObject [] { CH_in , CH_out , filterfunc } );
-        }
+        static IEnumerable<GameObject> NonInactiveRootsGO     () 
+            => Resources.FindObjectsOfTypeAll<GameObject>().Where( go => go.transform.parent == null );
     }
 
     public class OP_SuiGen<T>:OPCode {
+        /* 
+            水源 
+            - because "source" and "data source"  is already used in too many other contexts 
+            intended to implement the PhantomRoot simulation 
+            e.g.  generator func does AllGameObjects().Where( go => go.parent == null ) 
+
+        */ 
 
         public TypedSingleCH<T>         CH_out;
         public ColumnSingle<T>          Col_out;
@@ -250,6 +242,207 @@ namespace TranslateAndEval {
             return (OPCode)Activator.CreateInstance( closedType , new SObject[] { CH_out , generator } ) ;
         }
     }
+
+
+    #region SG immediate boilerplatism 
+    public class OP_SG_immediate_GO : OPCode{
+        public TypedCH< GameObject >  CH_in;
+        public Column < GameObject >  Col_in;
+
+        public TypedSingleCH < GameObject >  CH_out;
+        public ColumnSingle  < GameObject >  Col_out;
+
+        public OP_SG_immediate_GO ( TypedCH< GameObject > CH_in , TypedSingleCH<GameObject> CH_out ) {
+            this.CH_in = CH_in ; this.CH_out = CH_out; 
+        }
+
+        public override void eval(Context c)
+        {
+            foreach ( var box_in in Col_in.boxesT ) {
+                foreach ( Transform ch_go_transform in box_in.valueT().transform ) {
+                    Col_out.AddVal( ch_go_transform.gameObject );
+                }
+            }
+        }
+
+        public override void fill(MemMapper MM) { Col_in = MM.get(CH_in ); Col_out = MM.get(CH_out );}
+    }
+
+    public class OP_SG_immediate_Comp<in_CompType> : OPCode where in_CompType:Component{
+        public TypedCH< in_CompType >  CH_in;
+        public Column < in_CompType >  Col_in;
+
+        public TypedSingleCH < GameObject >  CH_out;
+        public ColumnSingle  < GameObject >  Col_out;
+
+        public OP_SG_immediate_Comp ( TypedCH< in_CompType > CH_in , TypedSingleCH<GameObject> CH_out ) {
+            this.CH_in = CH_in ; this.CH_out = CH_out; 
+        }
+
+        public override void eval(Context c)
+        {
+            foreach ( var box_in in Col_in.boxesT ) {
+                foreach ( Transform ch_go_transform in box_in.valueT().transform ) {
+                    Col_out.AddVal( ch_go_transform.gameObject );
+                }
+            }
+        }
+
+        public override void fill(MemMapper MM) { Col_in = MM.get(CH_in ); Col_out = MM.get(CH_out );}
+    }
+
+    public static partial class OPGEN {
+        public static OPCode MK_SG_immediate ( TypedCH CH_in , TypedCH CH_out ) {
+            var in_payload_type = CH_in.GetType().GetGenericArguments()[0];
+            Type closedType ; 
+            if ( in_payload_type == typeof(GameObject ) ) {
+                closedType = typeof ( OP_SG_immediate_GO ) ;
+            } else { 
+                closedType = typeof ( OP_SG_immediate_Comp<>).MakeGenericType( new [] { in_payload_type  } ) ;
+            }
+            return (OPCode)Activator.CreateInstance( closedType , new SObject[] { CH_in , CH_out } ) ;
+        }
+    }
+    #endregion
+
+    #region SG desc all boilerplatism 
+    /*
+        from ILSpy : 
+
+        UnityEngine.GameObject.Equals()  // does not override UE.Object.Equals() 
+        UnityEngine.Object.Equals()      //  calls this :
+        
+        
+        private static bool CompareBaseObjects(Object lhs, Object rhs)
+        {
+	        bool flag = (object)lhs == null;
+	        bool flag2 = (object)rhs == null;
+	        if (flag2 && flag)
+	        {
+		        return true;
+	        }
+	        if (flag2)
+	        {
+		        return !IsNativeObjectAlive(lhs);
+	        }
+	        if (flag)
+	        {
+		        return !IsNativeObjectAlive(rhs);
+	        }
+	        return object.ReferenceEquals(lhs, rhs);
+        }
+
+        will leads me to assume, for now, that there is a bijection between GameObject instances and the c-side objects they represent
+        
+        and that one can safely use these guys as dictionary keys 
+        ( GetHashCode() too points to the standart library System.Object.GetHashCode()  ) 
+
+        ... for now :) 
+    */
+
+    public static partial class OPCode_AUX { 
+        public static IEnumerable<GameObject> DescAll ( GameObject ObParent , bool inactive=false ) 
+            // abuse the fact that every GameObject has to have a Transform Component -- filter self 
+            => ObParent.GetComponentsInChildren<Transform>(inactive).Where(tr=>tr.gameObject != ObParent ).Select( tr=>tr.gameObject);
+        
+        public static IEnumerable<GameObject> DescAll ( Component ObParent , bool inactive=false ) 
+            // abuse the fact that every GameObject has to have a Transform Component -- filter self 
+            => ObParent.GetComponentsInChildren<Transform>(inactive).Where(tr=>tr.gameObject != ObParent ).Select( tr=>tr.gameObject);
+            /*
+                this is the variant with implied uniquness filter built in - dunno yet if something like >>+  ( spread ) is ever going to be needed 
+                -> all 
+
+                usage of dictionaries and sets preclude all assumptions about elemnt orders in columns or edges 
+            */
+        public static void DescAllColumnUnique ( Column<GameObject> col_in , ColumnMulti<GameObject> col_out ) {
+            var backedgeDict = new Dictionary<
+                GameObject,
+                HashSet<VBox<GameObject>>          // i'm 99% sure that for a concrete object DescAll can not yield a child seq that's not unique in Reference equal - a list should do - but set doesn't hurt and makes this a no brainer 
+                > ();
+            foreach ( var vbox_in in col_in.boxesT ) {
+                foreach ( var desc_obj in DescAll( vbox_in.valueT() ) ) {
+                    if ( backedgeDict.ContainsKey( desc_obj ) ) {
+                        backedgeDict[desc_obj].Add( vbox_in );                // this assumes it impossible that for a concrete vbox_in ( iterator fixed ) the same dict key can't be hit twice ( this is true if all payloads are different by ReferenceEquals ) 
+                    } else { 
+                        backedgeDict[desc_obj] = new HashSet<VBox<GameObject>>();
+                        backedgeDict[desc_obj].Add( vbox_in);                 // vboxes are classes -> RefEq uniqueness - which is what we want here 
+                    }
+                }
+            }
+            foreach ( var KV in backedgeDict ) {
+                GameObject childObject = KV.Key;
+                HashSet<VBox<GameObject>> sources = KV.Value;
+                col_out.AddVal(childObject , sources.Select( box => (VBox) box ) );   // the usual explicit upcast %#$! VBox<GameObject> --> VBox 
+            }
+
+        }
+        // pasta job to satisfy the type system - there is no real way to wrap this without huge amounts of boiler plate + runtime impact
+        public static void DescAllColumnUnique ( Column<Component> col_in , ColumnMulti<GameObject> col_out ) {
+            var backedgeDict = new Dictionary<
+                GameObject,
+                HashSet<VBox<Component>>          // i'm 99% sure that for a concrete object DescAll can not yield a child seq that's not unique in Reference equal - a list should do - but set doesn't hurt and makes this a no brainer 
+                > ();
+            foreach ( var vbox_in in col_in.boxesT ) {
+                foreach ( var desc_obj in DescAll( vbox_in.valueT() ) ) {
+                    if ( backedgeDict.ContainsKey( desc_obj ) ) {
+                        backedgeDict[desc_obj].Add( vbox_in );                // this assumes it impossible that for a concrete vbox_in ( iterator fixed ) the same dict key can't be hit twice ( this is true if all payloads are different by ReferenceEquals ) 
+                    } else { 
+                        backedgeDict[desc_obj] = new HashSet<VBox<Component>>();
+                        backedgeDict[desc_obj].Add( vbox_in);                 // vboxes are classes -> RefEq uniqueness - which is what we want here 
+                    }
+                }
+            }
+            foreach ( var KV in backedgeDict ) {
+                GameObject childObject = KV.Key;
+                HashSet<VBox<Component>> sources = KV.Value;
+                col_out.AddVal(childObject , sources.Select( box => (VBox) box ) );   // the usual explicit upcast %#$! VBox<GameObject> --> VBox 
+            }
+
+        }
+            
+    }
+
+    public class OP_SG_all_GO : OPCode{
+        public TypedCH< GameObject >  CH_in;
+        public Column < GameObject >  Col_in;
+
+        public TypedMultiCH < GameObject >  CH_out;
+        public ColumnMulti  < GameObject >  Col_out;
+
+        public OP_SG_all_GO ( TypedCH< GameObject > CH_in , TypedMultiCH<GameObject> CH_out ) {
+            this.CH_in = CH_in ; this.CH_out = CH_out; 
+        }
+
+        public override void eval(Context c) => OPCode_AUX.DescAllColumnUnique( Col_in , Col_out );    // todo pass through bool inactive 
+        public override void fill(MemMapper MM) { Col_in = MM.get(CH_in ); Col_out = MM.get(CH_out );}
+    }
+
+    public class OP_SG_all_Comp : OPCode{
+        public TypedCH< Component >  CH_in;
+        public Column < Component >  Col_in;
+
+        public TypedMultiCH < GameObject >  CH_out;
+        public ColumnMulti  < GameObject >  Col_out;
+
+        public OP_SG_all_Comp ( TypedCH< Component > CH_in , TypedMultiCH<GameObject> CH_out ) {
+            this.CH_in = CH_in ; this.CH_out = CH_out; 
+        }
+
+        public override void eval(Context c) => OPCode_AUX.DescAllColumnUnique( Col_in , Col_out );    // todo pass through bool inactive 
+        public override void fill(MemMapper MM) { Col_in = MM.get(CH_in ); Col_out = MM.get(CH_out );}
+    }
+    public static partial class OPGEN { 
+        public static OPCode MK_OP_SG_all ( TypedCH CH_in , TypedCH CH_out ) {
+            if ( CH_in.GetType().GetGenericArguments()[0] == typeof( GameObject ) ) {
+                return new OP_SG_all_GO ( (TypedCH<GameObject>) CH_in , (TypedMultiCH<GameObject>) CH_out); 
+            } else { 
+                return new OP_SG_all_Comp( (TypedCH<Component>) CH_in , (TypedMultiCH<GameObject>) CH_out); 
+            }
+        }
+    }
+
+
+    #endregion 
 
     // these two are identical implementation wise , but i can't restrict:  T_in :: GameObject|Component 
     public class OP_ComponentFilterGO< T_component > : OPCode  where T_component : UnityEngine.Component {
@@ -301,6 +494,7 @@ namespace TranslateAndEval {
             }
         }
     }
+ 
     public static partial class OPGEN {
         public static OPCode MK_ComponentFilter( TypedCH CH_in , TypedCH CH_out ) {
             var l_type = CH_in. ttuple.PayT;
@@ -315,6 +509,127 @@ namespace TranslateAndEval {
             }
         }
     }
+
+    #region FILTER
+
+    public class OP_UnaryFilter_SingleC<BoxT> : OPCode
+    {
+        public TypedCH < BoxT > CH_in  ;
+        public Column  < BoxT > Col_in ; 
+
+        public TypedSingleCH < BoxT > CH_out  ; 
+        public ColumnSingle  < BoxT > Col_out ;
+
+        public Func<BoxT,bool> FilterF ;
+
+        public OP_UnaryFilter_SingleC( TypedCH<BoxT> CH_in , TypedSingleCH<BoxT> CH_out , Func<BoxT,bool> FilterF ) 
+        { this.CH_in = CH_in ; this.CH_out = CH_out; this.FilterF = FilterF;}
+
+        public override void eval(Context c)
+        {
+            foreach ( var box_in in Col_in.boxesT ) {
+                if ( FilterF ( box_in.valueT() )  ) Col_out.AddVal( box_in.valueT() , box_in ) ;
+            }
+        }
+
+        public override void fill(MemMapper MM)
+        {
+            Col_in  = MM.get( CH_in  ) ;
+            Col_out = MM.get( CH_out ) ;
+        }
+    }
+
+    public static partial class OPGEN {
+        public static OPCode MK_OP_UnaryFilter_SingleC ( TypedCH CH_in , SingleCH CH_out ) {
+            var payT       = CH_in.ttuple.PayT ;
+            var closedType = typeof ( OP_UnaryFilter_SingleC<> ).MakeGenericType( new [] { payT} ) ; 
+            return (OPCode) Activator.CreateInstance( closedType , new SObject [] { CH_in , CH_out } ); 
+        }
+    }
+
+    /*
+        Column Layout : 
+
+        C<A>        |   C<B>                   |      C<A> 
+        LHS colm    |  Filter argument colm    |      result colm 
+
+        or rather 
+        C<B>   \
+        C<A>  --F --- C<A>  
+
+        if FilterFun ( LHS_elem , argument_elem ) => copy LHS_elem to result column
+
+        this kicks the can of type-conversion down the road :
+        the compile side has to provide a fitting  "(A,B) -> bool" to deal with stuff like  ( 3 > 3.5f ) 
+
+        eventually, somewhere, the whole apparatus of implicit conversion operators, implicit upcast, and the priorities between them that the compiler employs will have to be mirrorred
+
+        additionally : 
+            there is a needed invariant for this to work properly 
+            i   )      (SomeExpr) == $var
+            ii  )      (SomeExpr) == #var
+            iii )      (SomeExpr) == @json_literal 
+
+            in case i) and iii) the len's of SomeExpr-Column and $var-Column doesn't matter since they are defined with repeater semantics  
+            
+            in case ii) i *THINK* a    (anyLHS) #var  the len of the BarrierShift-column belonging to #var is neccesarily the same as of the LHS-Column
+            this is one of those things that just "should come together" -- dunno yet how to enforce it, other than being super pedantic while implementing the #-fetching stuff,  ... , and everything it depends on ... 
+
+    */
+
+    public class OP_BinaryFilter_SingleC<A, B> : OPCode
+    {
+
+        TypedCH<A>   CH_in  ;
+        Column <A>   Col_in ;
+
+        TypedCH<B>   CH_arg ;
+        Column <B>   Col_arg;
+
+        TypedSingleCH<A> CH_res;
+        ColumnSingle<A>  Col_res; 
+
+        Func<A,B,bool> FilterF ;
+
+        bool use_repeater;
+        
+        public OP_BinaryFilter_SingleC( TypedCH<A> CH_in , TypedCH<B> CH_arg , TypedSingleCH<A> CH_res , Func<A,B,bool> FilterF , bool use_repeater ) { 
+            this.CH_in = CH_in; this.CH_arg = CH_arg ; this.CH_res = CH_res; 
+
+            this.FilterF      = FilterF;
+            this.use_repeater = use_repeater;
+        }
+
+        public override void eval(Context c)
+        {
+            IEnumerator<B> arg_enum ;
+            // what happens to cyclic if the in-Enumerable has zero Elements ? -- even in the absence of bugs, that would be a valid use case for $vars in the arg 
+            // Cyclic throws if the in_seq is empty 
+
+            // default behaviour in this case? 
+            // i'm leaning towards silently nope-ing the entire in-Column - but leave this Exception uncought for now as a reminder that this question needs further thought 
+
+            if ( use_repeater ) arg_enum = Col_arg.valuesT.Cyclic().GetEnumerator();   
+            else                arg_enum = Col_arg.valuesT.GetEnumerator();
+            foreach ( var box_in in Col_in.boxesT ) {
+                if ( !arg_enum.MoveNext() ) throw new Exception("binary filter (repeater: " + use_repeater + ") : arg column exhausted before in_column -- this is likely bug in #fetch ") ;
+                B arg_val = arg_enum.Current;
+                if ( FilterF( box_in.valueT() , arg_val ) ) Col_res.AddVal( box_in.valueT() , box_in );
+            }
+            if ( (!use_repeater) && arg_enum.MoveNext() ) // no repeater means #fetch in this case the enumerator is expected to be exhausted at this point 
+                throw new Exception("binary filter : non exhausted arg enumerator ");
+        }
+
+        public override void fill(MemMapper MM)
+        {
+            Col_in  = MM.get( CH_in  ) ;
+            Col_arg = MM.get( CH_arg ) ;
+            Col_res = MM.get( CH_res ) ;
+        }
+    }
+
+    #endregion 
+
 
 
 

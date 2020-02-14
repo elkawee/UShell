@@ -19,6 +19,7 @@ namespace MainGrammar {
     public enum PTokE {
         OP_GT,OP_doubleGT,OP_dot,OP_percent,OP_star,OP_colon,OP_special_prop,OP_slash,OP_comma,
         OP_arrow_left , OP_arrow_right , 
+        OP_equals ,
         OP_sharp , OP_dollar , 
         CS_name,
         squareBRL,squareBRR,
@@ -252,14 +253,37 @@ namespace MainGrammar {
         
 
         #endregion
+        
+        #region Filter
+
+        public class EqualsFilterNode : NamedNode {
+        }
+        public static PI EqualsFilter = Prod<EqualsFilterNode>( 
+            SEQ ( TermP ( PTokE.OP_equals) , 
+                  OR ( SharpRef , DollarRef , TermP( PTokE.JSON )) 
+                ));
+
+        public class FilterNode :NamedNode {
+        }
+        public static PI Filter = Prod<FilterNode> ( 
+            OR ( TypeName , 
+                 EqualsFilter ) );
+
+        #endregion 
+                       
+        public class PrimitiveStepNode : NamedNode {} 
+        public static PI PrimitiveStep = Prod<PrimitiveStepNode> ( SEQ ( OR ( SG_Edge , RG_Edge , Filter , Fan ) , DeclStar ) );
 
         #region Start
+        public class StartNode : NamedNode {
+            public SG_EdgeNode startSG ;
+            public override void build() => startSG = (SG_EdgeNode) children[0];
 
-        public class StartRXNode : NamedNode {
-            SG_EdgeNode startSG => children.Length > 0 ? ( SG_EdgeNode ) children[0] : null ;
         }
 
-        public static PI StartRX = Prod< StartRXNode > ( SEQ ( SG_Edge , STAR( FanElem ) ) ) ;
+        // Subquery : must have non empty LHS , PLUS( PrimitiveStep ) 
+
+        public static PI Start = Prod<StartNode> ( SEQ ( SG_Edge , STAR ( PrimitiveStep ))); // todo : or open with wariable ref 
         
         #endregion 
 
@@ -297,6 +321,7 @@ namespace MainGrammar {
         const string JSonLiteral                  = @"(?'pay'@)" ; 
         const string AssignmentOP_S               = @"(?'pay'<-|<=)";
         const string DeclOP_S                     = @"(?'pay'->)";
+        const string Equals_Operator_S            = @"(?'pay'==)";
         
         /*
             relaxed tokenizes every string , stuff that would be otherwise not tokenizable is included as special Error Tokens 
@@ -363,6 +388,15 @@ namespace MainGrammar {
                     R.Add( op );
                     continue;
                 }
+
+                if ( Eat ( Equals_Operator_S ) ) {
+                    PTok op = new PTok { pay = payl };
+                    if      ( payl == "==" ) op.E = PTokE.OP_equals ;
+                    else throw new Exception();
+                    R.Add( op ) ;
+                    continue;
+                }
+
                 if ( Eat( SpecialPropOP_S )) {
                     R.Add ( new PTok { E = PTokE.OP_special_prop , pay = payl } );
                     continue;

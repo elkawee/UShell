@@ -42,7 +42,9 @@ namespace TranslateAndEval {
         TypedCH CH_out   {get; } 
     }
 
-    public interface VBoxTU : __VBoxTU_in , __VBoxTU_out {  }
+    public interface VBoxTU : __VBoxTU_in , __VBoxTU_out { 
+        IEnumerable<OPCode> emit();
+    }
 
     public interface VBoxTUMem : VBoxTU {  // for VBoxTUs that stride conicide with an edge in c# object ref graph 
         MemberInfo MI { get; }
