@@ -9,6 +9,16 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 
 
+#if UnityEngineMock
+using UnityEngine = UnityEngine;
+using GameObject = UnityEngine.GameObject;
+#else 
+using UnityEngine;
+#endif 
+
+
+
+
 #pragma warning disable 649, 169, 168, 219 // declared but unused, assigned but not used .... 
 
 namespace SuggestionTree
@@ -54,6 +64,30 @@ namespace SuggestionTree
 			D[edge] = new SuggestionLeaf<Pay>( payload );  // allways overwrite - and report back in case of collision  
 			return !present;
 		}
+
+
+        public void PullDownNamespaces(   SCG.IEnumerable<SCG.IEnumerable<string>> Namespaces ) {
+            // collect everything into a non lazy structure first 
+            var insertions = new SCG.List<  SuggestionTree<Pay>.IntermFResult.single_suggestion >() ; 
+
+            foreach ( var ns in Namespaces ) {
+                var namespace_node_res = FindSequence( ns.ToArray(), last_query_is_exact: true );
+                if ( namespace_node_res.type == SuggestionTree<Pay>.FRType.unique_fit ) {
+
+                    SuggestionTree<Pay> namespaceNode = namespace_node_res.suggs[0].val;
+                    foreach ( var single_sugg  in namespaceNode.FindAllWithPayload() ) insertions.Add( single_sugg );
+
+                } else { 
+                    throw new Exception( "no exact match for Namespace-pulling : " + string.Join(".", ns.ToArray() ) ); // <- turn this into consumer catchable Exception as soon as user defined "usings" are a thing 
+                }
+            }
+            //  second iteration to not intertwine access and modifying - and avoid reasoning headaches 
+            foreach ( var single_sugg in insertions ) {
+                Add ( single_sugg.steps , single_sugg.val.payload );  // Add overrides the payload 
+            }
+        }
+
+
 
         // originally result type for the public API was planned to be named FResult - but i can't remember what the F stood for >_< 
 	
@@ -128,6 +162,20 @@ namespace SuggestionTree
             }
             return own_res;
         }
+
+        SCG.IEnumerable<IntermFResult.single_suggestion> rec_down ( SCG.IEnumerable<string>  pref) {
+            if ( payload != null ) yield return new IntermFResult.single_suggestion{ steps = pref.ToArray() , val = this } ; 
+            foreach ( var kv in D.RangeAll() ) {
+                string                name_edge = kv.Key;
+                SuggestionTree<Pay>   subtree   = kv.Value;
+                foreach ( var sub_res in subtree.rec_down( pref.Concat( new [] { name_edge } ).ToArray() ) ) {
+                    yield return sub_res;
+                }
+            }
+        }
+        public SCG.IEnumerable< IntermFResult.single_suggestion>  FindAllWithPayload () {    
+            return rec_down( new string[0] ).ToArray();
+        }
 	}
     // since inner nodes can have a payload too - this distinction is not strictly neccessary
     // but it adds structure that is nice to sanity check against, so leave it for now 
@@ -135,116 +183,5 @@ namespace SuggestionTree
 		public SuggestionLeaf(Pay payload){ this.payload = payload ;}
 	}
 
-
-    public static class SGs {
-        public static string [] usings = new [] { "UnityEngine" , "System"} ;
-        static SuggestionTree<System.Type> _TypeSG = null;
-        public static SuggestionTree<System.Type> TypeSG { get { if ( _TypeSG == null ) _TypeSG =  BuildTypeSG(usings); return _TypeSG; } }
-        static Assembly [] _AllAssemblies = null;
-
-        public static Assembly [] AllAssemblies { get { // delay initialization - can't be at Assembly load time
-                if ( _AllAssemblies == null ) _AllAssemblies = Assembly.GetExecutingAssembly().GetReferencedAssemblies().
-                    Select ( ass_name => 
-                        Assembly.Load(ass_name)
-                    ).Concat( new [] { Assembly.GetExecutingAssembly()/*.NLSend("executing Assembly [____] ")*/ } ) .ToArray();
-                return _AllAssemblies ; } }
-        // ARGGGG, figgn "ExecutingAssembly" ist mit nichten die Binary, die als Einsprungspunkt fuer den Loader genommen wurde, sondern i-was anderes 
-
-        public static SuggestionTree<Type> BuildTypeSG(SCG.IEnumerable<string > usingsE ) { return BuildTypeSG( usingsE , AllAssemblies ) ; }
-
-        public static SuggestionTree<Type> BuildTypeSG(SCG.IEnumerable<string > usingsE , SCG.IEnumerable<Assembly> Assemblies)
-		{
-            #if !fakeSuggTree
-            var V = new UnityEngine.Vector3();  // otherwise UnityEngine does not turn up in GetReferencedAssemblies() , prob. only on OSX 
-            #endif
-
-            Func< Assembly, string, bool> name_match = ( ass , name ) => {
-                var n  =  ass.GetName().Name; // <- TODO dunno how safe this is 
-                //Console.WriteLine( n ) ; 
-                return n == name ; };
-
-
-            // Come to think of it - this way of doing "using"s is complete nonsense
-            // it only mirrors the behaviour of a using declaration for An Assembly that declares a namespace name equal to its Assembly name 
-            // _and_ has all its types declared within that 
-            // _and_ no other assembly declares stuff in that namespace 
-            // ... luckily this is quite common >_< 
-
-            var regular_Assemblies = Assemblies.Where ( ass => ! usingsE.Any( us => name_match(ass , us ) )  ) ;
-            var using_Assemblies   = Assemblies.Where ( ass => usingsE.Any( us => name_match(ass , us ) ) );
-
-            var RES = new SuggestionTree<Type>();
-
-            const string name_split_pattern = @"\.|\+" ; // <- prob not enough
-
-			foreach (var Ass in regular_Assemblies.Concat ( using_Assemblies ) )  // want both, such that a full name request still shows up 
-			{
-				Console.Write("fetching types from : " + Ass.GetName() + " ");
-				SCG.IEnumerable<Type> ts;
-
-				try
-				{
-					ts = Ass.GetTypes();
-				}
-				catch (System.Exception e)
-				{
-					Console.WriteLine("\n\n  !!! skipping Assembly !!! (" + e.Message+ ")");
-					continue;
-				}
-				foreach (var t in ts) RES.Add( Regex.Split(t.FullName, name_split_pattern) , t );
-				Console.WriteLine("\n-- ok (regular import)");
-			}
-            foreach (var Ass in using_Assemblies ) // <- do the thing twice , due to how SuggTree<>.Add works this overwrites names with the "using" ones should they collide  
-			{
-				Console.Write("fetching types from : " + Ass.GetName() + " ");
-				SCG.IEnumerable<Type> ts;
-
-				try
-				{
-					ts = Ass.GetTypes();
-				}
-				catch (System.Exception e)
-				{
-					Console.WriteLine("\n\n !!! skipping Assembly !!! (" + e.Message + ")");
-					continue;
-				}
-                
-				foreach (var t in ts) {
-                    var parts = Regex.Split(t.FullName, name_split_pattern).Skip(1); // <- TODO strip "using'd" part properly
-                    if ( parts.Count() > 0 ) {
-                        RES.Add( parts , t );  
-                    } else {
-                        Console.WriteLine( "skipped type :" + t.FullName +  "(" + t + ")" );
-                    }
-                }
-				Console.WriteLine("\n-- ok (using import)");
-			}
-            return RES;
-
-		}
-
-        const BindingFlags BI_inst = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance; // <- static hier ?
-
-        public static SuggestionTree<Type> BuildMemTree( Type T , Func<Type,SCG.IEnumerable<MemberInfo>> edges ) {
-            var R = new SuggestionTree<Type>();
-            foreach ( var memI in edges(T) ) {
-                Type TargetT ; 
-                if      ( memI is FieldInfo    ) TargetT = ((FieldInfo   ) memI ).FieldType;
-                else if ( memI is PropertyInfo ) TargetT = ((PropertyInfo) memI ).PropertyType;
-                else throw new NotImplementedException();
-                R.Add(new [] { memI.Name } , TargetT );
-            }
-            return R;
-        }
-
-        public static SuggestionTree<Type> BuildFieldTree( Type T ) {
-            return BuildMemTree( T , T_ => T_.GetFields(BI_inst) );
-        }
-        public static SuggestionTree<Type> BuildPropTree( Type T ) {
-            return BuildMemTree( T , T_ => T_.GetProperties(BI_inst) );
-        }
-
-    }
-
-
+    
 }

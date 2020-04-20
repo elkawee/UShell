@@ -58,7 +58,7 @@ namespace TranslateAndEval {
 
     public abstract class preCH : TypingSrc {
         public abstract TypedCH CH { get; }   // usage relies on preCH -> CH (by object instance) to be a pure function. that is, assign underlying field at most once, if any 
-        protected static TypedCH Instantiate( TTuple ttuple , VBoxTU dataSrc ) {
+        public  static TypedCH Instantiate( TTuple ttuple , VBoxTU dataSrc ) {
             Type closedType ; 
             if ( ttuple.isMulti ) {
                 closedType = typeof ( TypedMultiCH<>  ).MakeGenericType( new [] { ttuple.PayT } );

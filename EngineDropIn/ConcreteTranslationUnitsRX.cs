@@ -21,7 +21,10 @@ using SGA = SuggestionTree.SuggTAdapter;
 //#endif
 
 
+
+
 using UnityEngine;
+
 
 
 
@@ -90,7 +93,7 @@ namespace TranslateAndEval {
         public class RG_EdgeTU_RX : TU_RX
         {
             public readonly preCH preCH_out;
-            public readonly AssignTR assignVTNode = null ;
+            public readonly Assign_VBXTU assignVTNode = null ;
 
             public RG_EdgeTU_RX ( MG.RG_EdgeNode rg_EdgeNode , preCH preCH_in ) {
                 var memANodeRX = (MGRX.MemANodeRX)rg_EdgeNode.memAVT.children[0];  // todo proper field in MemAVTNode - hard cast doubles as Assert
@@ -112,7 +115,7 @@ namespace TranslateAndEval {
                 if ( rg_EdgeNode.assignVT == null ) {
                     preCH_out = memA_preCH_out;    
                 } else { 
-                    assignVTNode = new AssignTR(preCH_in , rg_EdgeNode.assignVT );
+                    assignVTNode = new Assign_VBXTU(preCH_in , rg_EdgeNode.assignVT );
                     preCH_out = assignVTNode.preCH_out;
                 }
 

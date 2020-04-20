@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -137,13 +138,15 @@ namespace MainGrammar {
         #endregion
 
         #region refs 
-        public class SharpRefNode : NamedNode {
-            public string name ;
-            public override void build () {  name = (children[1] as TermNode ).tok.pay ;} 
+        public abstract class RefNode : NamedNode { public abstract string name { get; } }
+        public class SharpRefNode : RefNode {
+            public override string name => TermPay(children[1]);
+            public override void build () {} 
         }
-        public class DollarRefNode : NamedNode {
-            public string name ;
-            public override void build () {  name = (children[1] as TermNode ).tok.pay ;} 
+        public class DollarRefNode : RefNode {
+            public override string name => TermPay(children[1]);
+
+            public override void build () { } 
         }
         
         public static PI SharpRef  = Prod<SharpRefNode > ( SEQ (  TermP( PTokE.OP_sharp ) , TermP  ( PTokE.CS_name )) );
@@ -257,13 +260,20 @@ namespace MainGrammar {
         #region Filter
 
         public class EqualsFilterNode : NamedNode {
+            public bool isRef      => children[1] is RefNode      ;
+            public bool isSharpRef => children[1] is SharpRefNode ;
+            public bool isDollarRef=> children[1] is DollarRefNode ; 
+            
+            public RefNode RHS_ref => isRef? children[1] as RefNode : null ;
+            public string  json    => isRef? null : TermPay( children[1] ) ;
         }
         public static PI EqualsFilter = Prod<EqualsFilterNode>( 
             SEQ ( TermP ( PTokE.OP_equals) , 
-                  OR ( SharpRef , DollarRef , TermP( PTokE.JSON )) 
+                  OR    ( SharpRef , DollarRef , TermP( PTokE.JSON ) ) 
                 ));
 
-        public class FilterNode :NamedNode {
+
+        public class FilterNode : NamedNode {
         }
         public static PI Filter = Prod<FilterNode> ( 
             OR ( TypeName , 
@@ -271,19 +281,54 @@ namespace MainGrammar {
 
         #endregion 
                        
-        public class PrimitiveStepNode : NamedNode {} 
-        public static PI PrimitiveStep = Prod<PrimitiveStepNode> ( SEQ ( OR ( SG_Edge , RG_Edge , Filter , Fan ) , DeclStar ) );
+        public class PrimitiveStepNode : NamedNode {
+            public AssignVTNode[] assigns;
+            public DeclStarNode   primary_decl_node;
+            public override void build()
+            {
+                // DeclStarNode is always present - might have consumed empty 
+                primary_decl_node = (DeclStarNode)children[1];
+                assigns           = children.Skip(2).Select( ch => (AssignVTNode) ch ).ToArray(); // hard cast as sanity check towards assumptions wrt AST-shape 
+            }
+        } 
+        
+        /* 
+         * assignment of GameObjects or Components are a special, depending on the Assign-value-target 
+         *   GO .*field <- GO          // simply assign a ref 
+         *   GO .*field <- Component   // ditto 
+         *   GO <- GO                  // add Child ?? 
+         *   GO <- Component           // CreateComponent() 
+         * 
+         * for now, SG_Edge is not a valid Assign-value-target ( Assigning a Component to a GameObject needs special treatment ) 
+         * - MemA is   -- always is
+         * - Filter is -- depending on what's left of it 
+         * - Fan       -- like Filter 
+         */
+        public static PI PrimitiveStep = Prod<PrimitiveStepNode> ( SEQ ( 
+                OR (    SG_Edge , 
+                        MemA    , 
+                        Filter  , 
+                        Fan 
+                        // Todo : VarRef 
+                        ) , 
+                DeclStar ,
+                STAR ( AssignVT )     // AssignVT includes DeclStar
+                ) );
 
         #region Start
-        public class StartNode : NamedNode {
+        public class ProvStartNode : NamedNode {
             public SG_EdgeNode startSG ;
-            public override void build() => startSG = (SG_EdgeNode) children[0];
+            public PrimitiveStepNode [] primSteps ;
+            public override void build() { 
+                startSG = (SG_EdgeNode) children[0];
+                primSteps = children.Skip(1).Select( nn => (PrimitiveStepNode) nn ).ToArray();
+            }
 
         }
 
         // Subquery : must have non empty LHS , PLUS( PrimitiveStep ) 
 
-        public static PI Start = Prod<StartNode> ( SEQ ( SG_Edge , STAR ( PrimitiveStep ))); // todo : or open with wariable ref 
+        public static PI ProvStart = Prod<ProvStartNode> ( SEQ ( SG_Edge , STAR ( PrimitiveStep ))); // todo : or open with wariable ref 
         
         #endregion 
 
@@ -422,10 +467,6 @@ namespace MainGrammar {
                     R.Add( op);
                     continue;
                 }
-                if ( relaxed ) if (Eat( @"(?'pay'.)" ) ) {
-                        R.Add( new PTok { E = PTokE.ErrT , pay = payl } ); // consume arbitrary char and tag it as tokenization error
-                        continue;
-                }
                 if ( Eat ( JSonLiteral ) ) {  // consumation length determined by json parser 
                     object JResult = null ;
                     string new_rest = "";
@@ -440,6 +481,10 @@ namespace MainGrammar {
                         else throw new Exception();
                     }
                     continue;
+                }
+                if ( relaxed ) if (Eat( @"(?'pay'.)" ) ) {
+                        R.Add( new PTok { E = PTokE.ErrT , pay = payl } ); // consume arbitrary char and tag it as tokenization error
+                        continue;
                 }
 
                 if ( rest == "" ) return R.ToArray(); // parse success

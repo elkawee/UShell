@@ -20,15 +20,25 @@ using NLSPlain;
 public class Compilat {
     //public IEnumerable<Scope.Ref> externals { get { return deltaScope.externals; } }
     //public IEnumerable<Scope.Ref> ownDecls { get { return deltaScope.ownDecls; } }
-    public OPCode[] OPs;
-    public VBoxTU[] VBoxTrs;
-    public string src;
+    public OPCode [] OPs;
+    public VBoxTU [] VBoxTrs;
+
+    public string        src;
     public CH_deltaScope deltaScope;
-    public void run(MemMapper MM) {    // <- will later need a variant with explicit Context passed in 
+
+    public void run( MemMapper MM ) {    // <- will later need a variant with explicit Context passed in 
         var Ctx = new Context();
         foreach(var op in OPs) op.fill(MM);
         foreach(var op in OPs) op.eval(Ctx);
     }
+
+    public Column run_WRes( MemMapper MM ) {
+        var Ctx = new Context();
+        foreach(var op in OPs) op.fill(MM);
+        foreach(var op in OPs) op.eval(Ctx);
+        return MM.getGen( VBoxTrs.Last().CH_out );
+    }
+
 }
 
 

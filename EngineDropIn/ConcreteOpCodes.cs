@@ -6,12 +6,8 @@ using System.Linq;
 
 using System.Reflection;
 
-#if UnityEngineMock1
-using UnityEngine = UnityEngineMock1;
-using GameObject = UnityEngineMock1.GameObject;
-#else 
 using UnityEngine;
-#endif 
+
 using SObject = System.Object;
 
 using D = System.Diagnostics.Debug;
@@ -71,7 +67,7 @@ namespace TranslateAndEval {
         }
     }
 
-       
+    #region deprecated Mema_ref_ref    
     public class OP_MemA_RefRef<Tobj,Tfield> : OPCode{
         public TypedCH<Tobj>         CH_in ;
         public TypedCH<Tfield>       CH_out ;
@@ -99,6 +95,68 @@ namespace TranslateAndEval {
             return (OPCode)Activator.CreateInstance( completeType , new object [] { CH_L , CH_R , FI } );
         }
     }
+    #endregion
+    
+    public class OP_MemA_FieldSingle<Tobj,Tfield> : OPCode {
+        public TypedCH<Tobj>         CH_in ;
+        public Column<Tobj>          Col_in ;
+
+        public TypedSingleCH<Tfield>       CH_out ;
+        public ColumnSingle<Tfield>        Col_out;         
+
+        public FieldInfo fi ;
+        public OP_MemA_FieldSingle( TypedCH<Tobj> CH_in , TypedSingleCH<Tfield> CH_out , FieldInfo fi ) {
+            this.CH_in = CH_in ; this.CH_out = CH_out ; this.fi = fi;
+        }
+        public override void fill(MemMapper MM) {
+            Col_in  = MM.get(CH_in ) ;
+            Col_out = MM.get(CH_out);
+        }
+        public override void eval (Context _ ) {
+            foreach ( var box_in in Col_in.boxesT ) {
+                Col_out.AddVal( (Tfield)fi.GetValue(box_in.value() ) , box_in );
+            }
+        }
+    }
+
+    public static partial class OPGEN {
+        public static OPCode MK_OP_MemA_FieldSingle( TypedCH CH_L , TypedCH CH_R , FieldInfo FI ) {
+            var completeType = typeof( OP_MemA_FieldSingle<,> ).MakeGenericType( new [] { CH_L.ttuple.PayT , CH_R.ttuple.PayT } );
+            return (OPCode)Activator.CreateInstance( completeType , new object [] { CH_L , CH_R , FI } );
+        }
+    }
+
+    public class OP_MemA_PropSingle<Tobj,Tprop> : OPCode  {
+        public TypedCH<Tobj>         CH_in ;
+        public Column<Tobj>          Col_in ;
+
+        public TypedSingleCH<Tprop>       CH_out ;
+        public ColumnSingle<Tprop>        Col_out;         
+
+        public PropertyInfo pi ;
+        public OP_MemA_PropSingle( TypedCH<Tobj> CH_in , TypedSingleCH<Tprop> CH_out , PropertyInfo pi ) {
+            this.CH_in = CH_in ; this.CH_out = CH_out ; this.pi = pi;
+        }
+        public override void fill(MemMapper MM) {
+            Col_in  = MM.get(CH_in ) ;
+            Col_out = MM.get(CH_out);
+        }
+        public override void eval (Context _ ) {
+            foreach ( var box_in in Col_in.boxesT ) {
+                Col_out.AddVal( (Tprop)pi.GetValue(box_in.value() , new object [0] ) , box_in );
+            }
+        }
+    }
+
+    public static partial class OPGEN {
+        public static OPCode MK_OP_MemA_PropSingle( TypedCH CH_L , TypedCH CH_R , PropertyInfo FI ) {
+            var completeType = typeof( OP_MemA_PropSingle<,> ).MakeGenericType( new [] { CH_L.ttuple.PayT , CH_R.ttuple.PayT } );
+            return (OPCode)Activator.CreateInstance( completeType , new object [] { CH_L , CH_R , FI } );
+        }
+    }
+
+
+    // --------------------------------------------------------------------------
 
     public class OP_MemA_RefProp<Tobj,Tprop> : OPCode{
         public TypedCH<Tobj>         CH_in ;
@@ -128,7 +186,7 @@ namespace TranslateAndEval {
         }
     }
 
-
+    #region const 
 
     // placeholder - simplest solution for now - wrap a value into an operator 
     public class OP_const<DeserializedPay> : OPCode {
@@ -153,6 +211,8 @@ namespace TranslateAndEval {
             return (OPCode)Activator.CreateInstance( compleType , new SObject [] { CH_out , payload } );
         }
     }
+
+    #endregion 
 
     public class OP_BarrierShift<PayOrig, PayLHS>:OPCode {
         public TypedCH<PayOrig>        origCH ;         // only for calc-ing backsteps 
@@ -203,12 +263,15 @@ namespace TranslateAndEval {
     }
 
     public static partial class OPCode_AUX {
-        static IEnumerable<T>          NonInactiveObjectsOf<T>() where T:UnityEngine.Object 
+        public static IEnumerable<T>          NonInactiveObjectsOf<T>(Context _) where T:UnityEngine.Object 
             => Resources.FindObjectsOfTypeAll<T>              ();
 
-        static IEnumerable<GameObject> NonInactiveRootsGO     () 
+        public static IEnumerable<GameObject> NonInactiveRootsGO     (Context _) 
             => Resources.FindObjectsOfTypeAll<GameObject>().Where( go => go.transform.parent == null );
     }
+
+
+    #region suigen 
 
     public class OP_SuiGen<T>:OPCode {
         /* 
@@ -242,7 +305,7 @@ namespace TranslateAndEval {
             return (OPCode)Activator.CreateInstance( closedType , new SObject[] { CH_out , generator } ) ;
         }
     }
-
+    #endregion 
 
     #region SG immediate boilerplatism 
     public class OP_SG_immediate_GO : OPCode{
@@ -627,6 +690,84 @@ namespace TranslateAndEval {
             Col_res = MM.get( CH_res ) ;
         }
     }
+
+    public static partial class OPGEN {
+        
+        /*
+            In the general case T1.Equals(T2) does not always exist explicitly even if it "effectually" exists 
+            c# typing rules for assignment being as they are, for Fuc<A,B,..> to be assignable the types must match exactly 
+
+            TODO - the goal for the == Operator is to behave exactly as  " a == b " would in plain old c# source with all the implicit conversions, overloads and so on 
+                 - emulating this from within reflection will prob. be quite some work 
+        */
+
+        public static Func<TObj,TArgTarget,bool> EqualsTypingWrapper <TObj,TArgTarget> ( ) {
+            return (obj,arg) => obj == null ? arg == null : obj.Equals(arg );
+
+            /*
+                "obj.Equals(arg )" translates to : 
+                
+		        IL_0003: box !TArgTarget
+		        IL_0008: constrained. !TObj
+		        IL_000e: callvirt instance bool [mscorlib]System.Object::Equals(object)
+		        
+		        
+
+                Diese Variante verliert sowieso den compile time statischen Dispatch via overloads 
+
+                Was mich wundert ist, dass es kein boxing fuer TArg gibt ? 
+
+                https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit.opcodes.constrained?redirectedfrom=MSDN&view=netframework-4.8
+
+                callvirt OPCode wurde gepimpt, extra um diese Art von konstrukt in einem Generic-Context uebersetzen zu koennen 
+                (callvirt selbst testet auf ValueType und uebernimmt das boxing automagically ) 
+
+            */
+
+        }
+
+        public static OPCode MK_OP_BinaryFilter_SingleC ( TypedCH CH_in , SingleCH CH_out , SObject FilterF , bool useRepeater ) {
+            /*
+            var payT1       = CH_in.ttuple.PayT ;
+            var payT2       = CH_out.ttuple.PayT ;
+            var closedType = typeof ( OP_BinaryFilter_SingleC<,> ).MakeGenericType( new [] { payT1 , payT2} ) ; 
+            return (OPCode) Activator.CreateInstance( closedType , new SObject [] { CH_in , CH_out , FilterF , useRepeater } ); 
+            */
+            throw new NotImplementedException(); 
+        }
+
+        // special treatment for Equals 
+        public static OPCode MK_EqualsFilter_SingleC ( TypedCH CH_in , TypedCH CH_arg ,  SingleCH CH_out ,  bool useRepeater ) {
+            var PayT_in  = CH_in.ttuple.PayT  ;
+            var PayT_arg = CH_out.ttuple.PayT ;  // in and out have the same type 
+            if ( PayT_in != CH_out.ttuple.PayT ) throw new Exception(); // <- CreateInstance would throw anyhow - but very cryptically 
+
+
+            MethodInfo WrapperF_T = typeof (OPGEN).GetMethod("EqualsTypingWrapper");
+            MethodInfo closed_F   = WrapperF_T.MakeGenericMethod( new [] { PayT_in , PayT_arg } ) ;
+
+            SObject InstantiatedDelegate = closed_F.Invoke( null , new SObject[0] ) ;
+
+            Type       closed_OPC_T = typeof ( OP_BinaryFilter_SingleC<,>).MakeGenericType( new [] { PayT_in , PayT_arg } ) ;
+
+            // public OP_BinaryFilter_SingleC( TypedCH<A> CH_in , TypedCH<B> CH_arg , TypedSingleCH<A> CH_res , Func<A,B,bool> FilterF , bool use_repeater ) 
+
+
+            // Some typeMapping problems here 
+            // come to think of it: this "automagically choose the correct overload" has to be doing quite a bit of magic to work as advertized
+            // a complete and precise description of its inner workings would probably span pages - if it exists somewhere 
+
+            // ok ... i'm an idiot (passed MethodInfo for a delegate) , ... but still 
+
+            // OPCode     inst = (OPCode) Activator.CreateInstance( closed_OPC_T , new SObject[] { CH_in , CH_arg , CH_out , closed_F , useRepeater } );
+
+            ConstructorInfo CInfo = closed_OPC_T.GetConstructors()[0]; // don't intend to ever have more than one constructors on any of these 
+
+            return (OPCode) CInfo.Invoke( new SObject[] { CH_in , CH_arg , CH_out , InstantiatedDelegate , useRepeater } ) ;
+
+        }
+    }
+
 
     #endregion 
 

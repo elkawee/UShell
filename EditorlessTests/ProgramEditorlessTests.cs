@@ -194,8 +194,8 @@ namespace EditorlessTests {
      public class TestTR : TranslationUnit {
         public TestMG1.MemA_andOptAssign test_start_node {get;set; }
 
-        public MemATU                memaTR;
-        public AssignTR              assignTR;
+        public MemA_VBXTU                memaTR;
+        public Assign_VBXTU              assignTR;
         
         public override VBoxTU[] VBoxTUs { get { return new VBoxTU[] { memaTR , assignTR } ; } }
 
@@ -204,9 +204,9 @@ namespace EditorlessTests {
         public TestTR ( TestMG1.MemA_andOptAssign startNode, preCH pre_LHS ) {
             test_start_node = startNode;
             this.pre_LHS = pre_LHS;
-            memaTR = new MemATU ( pre_LHS , startNode.memavt_node );
+            memaTR = new MemA_VBXTU ( pre_LHS , startNode.memavt_node );
 
-            assignTR = startNode.assignvt_node == null ? null : new AssignTR ( memaTR.preCH_out , startNode.assignvt_node ) ;
+            assignTR = startNode.assignvt_node == null ? null : new Assign_VBXTU ( memaTR.preCH_out , startNode.assignvt_node ) ;
 
         }
         public override preCH_deltaScope scope ( preCH_deltaScope SC ) {

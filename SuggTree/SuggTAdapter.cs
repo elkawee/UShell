@@ -8,16 +8,9 @@ using System.Text;
 using System.Reflection;
 using SuggestionTree;
 
-#if !fakeSuggTree
 
-using UnityEngine ;
-#endif 
-
-
-#pragma warning disable CS0436
-// temporary - this is probably because ShellCommonDummyProject references ParseComb and thus has two definitions of MembK
-// what i don't get is why there is no complaint about SuggTreeAdapter which has the same problem 
-// because one is a struct ? 
+using UnityEngine;
+using System.Text.RegularExpressions;
 
 namespace SuggestionTree {
 
@@ -36,7 +29,7 @@ namespace SuggestionTree {
         static MembK () {
             BindingFlags bi = BindingFlags.Public | BindingFlags.Instance ;
             #if !fakeSuggTree
-            SpecialProps.Add( typeof(MeshRenderer).GetProperty("material",bi) ) ;
+            SpecialProps.Add( typeof(UnityEngine.MeshRenderer).GetProperty("material",bi) ) ;
             #endif
         }
         public MembK_E E ;
@@ -73,65 +66,140 @@ namespace SuggestionTree {
 
         public struct typeAC_alt { public Type T ; public string [] steps ;}
         
-#if !fakeSuggTree 
-        static string [] usings = new [] { "UnityEngine" , "System"} ;       
+
+        static string [][] usings = new [] { 
+            new [] { "UnityEngine" } , 
+            new [] { "System"      } 
+        } ;       
+
+
+
+        
+        #region static_init 
+
+        // case this gets triggered during AssemblyLoad or similar shenanigens , and causes mutual recursion - better save then sorry 
+        // in general : threading might also be a concern , Translation and Autocomplete callbacks do not need to run in the same thre
+        static bool recursion_trap = false ; 
+
+        public static SuggestionTree<Type> BuildPlainTypeSG_FromAssemblies ( IEnumerable<Assembly> assems ) {
+            if ( recursion_trap ) throw new Exception("recursively building TypeSuggTree");
+            else recursion_trap = true ;
+
+            // TODO : find a proper way to get the individual typenameComponents :  
+            // Namespace.Namspace.ParentTypeName.BasicBitchTypename
+            // in particular isolate all the other potential junk that the "serialized" string properties of System.Type might contain 
+
+            const string name_split_pattern = @"\.|\+" ; // <- prob not enough
+
+            var RES = new SuggestionTree<Type> () ;
+
+            foreach ( var assem in assems ) {
+                Console.WriteLine("loading types for " + assem.FullName ) ; 
+                IEnumerable<Type> ts;
+                try { 
+                    ts = assem.GetTypes();
+                } catch ( Exception e ) {
+                    Console.WriteLine( "\n\n !!! skipping Assembly !!! (" + e.Message + ")" );
+                    continue;
+                }
+                foreach ( var type in ts ) {
+                    RES.Add( Regex.Split(type.FullName, name_split_pattern) , type );
+                }
+            }
+
+
+            recursion_trap = false ;
+
+            return RES;
+        }
+
+        // pluggable strategy for the set of assemblies to pull typinfo from 
+        // atm "loaded_assemblies" ∪ (all referenced assems for each in loaded ) 
+        // this is not the same as as all refrenced in msbuild input 
+        // i guess the linker strips all that are not "referenced in code" ? 
+        // ( i suspect there might be no such thing as a referenced Assembly, only a list of (typename, AssemName ) in the import table , .. TODO  ) 
+        //
+        // also : 
+        // this loads all Assemblies that are supposed to provide types to be autocompleted on 
+        // ( this is because the suggTree uses System.Type instances to represent types ( could be noticably inefficient / have undesireable side effects 
+        //  
+        //   Todo: i don't know if you can have System.Type instances of types defined in not yet loaded Assemblies and what consequences this would have 
+
+
+        public static IEnumerable<Assembly>  ConsideredAssemblies() { 
+            AppDomain dom = AppDomain.CurrentDomain ; 
+            var loaded_assems = dom.GetAssemblies(); 
+
+            var depth1_refd_assems = new HashSet<Assembly>();
+            foreach ( var assem in loaded_assems ) {
+                depth1_refd_assems.Add ( assem ) ;
+                var names = assem.GetReferencedAssemblies();
+                foreach ( AssemblyName name in names ) {
+                    var ass = dom.Load(name ) ;
+                    depth1_refd_assems.Add ( ass ) ;
+                }
+            }
+            return depth1_refd_assems;
+        }
+        
+        public static SuggestionTree<Type> BuildTypeSG() { 
+            SuggestionTree<Type> TSG = BuildPlainTypeSG_FromAssemblies ( ConsideredAssemblies() ) ;
+            TSG.PullDownNamespaces( usings );
+            return TSG;
+        }
+
+
         static SuggestionTree<System.Type> _TypeSG = null;
-        public static SuggestionTree<System.Type> TypeSG { get { if ( _TypeSG == null ) _TypeSG =  SGs.BuildTypeSG(usings); return _TypeSG; } }
+
+        #endregion 
+        public static SuggestionTree<System.Type> TypeSG { get { if ( _TypeSG == null ) _TypeSG =  BuildTypeSG(); return _TypeSG; } }
         const BindingFlags BI_inst = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance; // <- static hier ?
 
         
 
         public static MemberInfo[] MembAC ( Type T , string arg  ) { return MembAC( T, arg , MembK.Any() ); }
         public static MemberInfo[] MembAC ( Type T , string arg ,  MembK filter ) {
-            return MembAC_Impl(T,arg,filter);
+            var SG  = GetMembSG( T ) ;
+            var res = SG.FindSingle( arg , exact_query:false ) ;
+            MemberInfo[] R =  res.suggs.Select ( sugg => sugg.val.payload ).Where( (MemberInfo mi) => filter.match_filter(new MembK( mi ))  ).ToArray();
+            return R;
         }
 
         public static Type MembType_Exact  ( Type T , string arg   ) { return MembType_Exact( T , arg , MembK.Any() ); }
         public static Type MembType_Exact  ( Type T , string arg , MembK kind_filter  ) {
-            return MembType_Exact_Impl( T , arg , kind_filter );
+               
+            var MembSugg = GetMembSG ( T) ; 
+            var res     = MembSugg.FindSingle( arg , exact_query:true );
+            if ( res.type != SuggestionTree<MemberInfo>.FRType.unique_fit ) throw new TypingException();
+
+            MemberInfo mi = res.suggs[0].val.payload; 
+            MembK kind = new MembK(mi);
+            if ( ! kind_filter.match_filter( kind )) throw new TypingException();
+            
+            if ( mi is FieldInfo )    return (mi as FieldInfo).FieldType;
+            if ( mi is PropertyInfo ) return (mi as PropertyInfo).PropertyType; 
+            throw new ArgumentException();
         }
 
         public static typeAC_alt[] QTN_AC ( string [] args , out string prefix  ) {
-            return QTN_AC_Impl( args , out prefix );
+            if ( args.Length == 0 ) throw new ArgumentException("empty argument is to be represented as [\"\"]");
+            var res = TypeSG.FindSequence( args , last_query_is_exact:false ) ;
+            if ( res.type == SuggestionTree<Type>.FRType.empty ) { prefix = "" ; return new typeAC_alt[0] ; }
+            var alts = res.suggs.Select ( sugg => new typeAC_alt { T = sugg.val.payload , steps = sugg.steps } ).ToArray() ;
+            int pref_idx = args.Length -1 ; 
+            prefix = LongestCommonPrefix( alts.Select( sugg => sugg.steps[pref_idx]).ToArray() );                             /* assumes SuggTree invariant : FindSeq( seq_in ) -> [ steps ] :: len(steps) = len(seq_in) for all steps  */
+            return alts ;
         }
         public static Type QTN_Exact ( string [] args  ) {
-            return QTN_Exact_Impl( args ) ;
+            var res = TypeSG.FindSequence(args, last_query_is_exact:true );
+            if ( res.type != SuggestionTree<Type>.FRType.unique_fit ) throw new TypingException();
+            return res.suggs[0].val.payload;
         }
         public static Type SGDefaultType { get {
-                return typeof ( UnityEngine.GameObject);
-         } }
-#else
-        
-        public static MemberInfo[] MembAC ( Type T , string arg  ) {
-
-            throw new NotImplementedException();
-
-        }
-        public static Type MembType_Exact  ( Type T , string arg   ) {
-
-            throw new NotImplementedException();
-
-        }
-        public static typeAC_alt[] QTN_AC ( string [] args , out string prefix  ) {
-
-            throw new NotImplementedException();
-
-        }
-        public static Type QTN_Exact ( string [] args  ) {
-
-            throw new NotImplementedException();
-
-        }
-        public static Type SGDefaultType { get {
-           throw new NotImplementedException();
-        }}
-#endif
+                return typeof ( UnityEngine.GameObject );
+        } }
 
 
-
-
-
-#if !fakeSuggTree
 
         static SuggestionTree<MemberInfo> BuildMembTree( Type T  ) {
             var R = new SuggestionTree<MemberInfo>();
@@ -154,58 +222,6 @@ namespace SuggestionTree {
             Fields[t] = nuSG;
             return nuSG;
         }
-      
-
-        
-        static Type QTN_Exact_Impl ( string [] args  ) {
-            
-            var res = TypeSG.FindSequence(args, last_query_is_exact:true );
-            if ( res.type != SuggestionTree<Type>.FRType.unique_fit ) throw new TypingException();
-            return res.suggs[0].val.payload;
-            
-        }
-
-        static Type MembType_Exact_Impl  ( Type T , string arg , MembK mk_filter  ) {
-            
-            var MembSugg = GetMembSG ( T) ; 
-            var res     = MembSugg.FindSingle( arg , exact_query:true );
-            if ( res.type != SuggestionTree<MemberInfo>.FRType.unique_fit ) throw new TypingException();
-
-            MemberInfo mi = res.suggs[0].val.payload; 
-            MembK kind = new MembK(mi);
-            if ( ! mk_filter.match_filter( kind )) throw new TypingException();
-            
-            if ( mi is FieldInfo )    return (mi as FieldInfo).FieldType;
-            if ( mi is PropertyInfo ) return (mi as PropertyInfo).PropertyType; 
-            throw new ArgumentException();
-            
-        }
-
-        
-
-        static typeAC_alt[] QTN_AC_Impl ( string [] args , out string prefix  ) {
-            
-            if ( args.Length == 0 ) throw new ArgumentException("empty argument is to be represented as [\"\"]");
-            var res = TypeSG.FindSequence( args , last_query_is_exact:false ) ;
-            if ( res.type == SuggestionTree<Type>.FRType.empty ) { prefix = "" ; return new typeAC_alt[0] ; }
-            var alts = res.suggs.Select ( sugg => new typeAC_alt { T = sugg.val.payload , steps = sugg.steps } ).ToArray() ;
-            int pref_idx = args.Length -1 ; 
-            prefix = LongestCommonPrefix( alts.Select( sugg => sugg.steps[pref_idx]).ToArray() );                             /* assumes SuggTree invariant : FindSeq( seq_in ) -> [ steps ] :: len(steps) = len(seq_in) for all steps  */
-            return alts ;
-           
-        }
-
-
-        static MemberInfo[] MembAC_Impl ( Type T , string arg ,  MembK filter ) {
-            
-            var SG  = GetMembSG( T ) ;
-            var res = SG.FindSingle( arg , exact_query:false ) ;
-            MemberInfo[] R =  res.suggs.Select ( sugg => sugg.val.payload ).Where( (MemberInfo mi) => filter.match_filter(new MembK( mi ))  ).ToArray();
-            return R;
-        }
-
-#endif
-
 
 
 #region aux 
