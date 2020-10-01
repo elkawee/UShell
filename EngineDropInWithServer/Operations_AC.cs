@@ -10,6 +10,8 @@ using SGA = SuggestionTree.SuggTAdapter;
 using MG = MainGrammar.MainGrammar;
 using MGRX = MainGrammar.MainGrammarRX;
 using D = System.Diagnostics.Debug;
+using MainGrammar ;
+
 // SuggTree decoupling types 
 using MembK = SuggestionTree.MembK;
 using MembK_E = SuggestionTree.MembK_E;
@@ -22,10 +24,10 @@ using System.IO;
 */
 
 
-namespace MainGrammar { // todo maybe own namespace 
+namespace Operations { // todo maybe own namespace 
 
   
-    public class Operations {
+    public static partial class Operations {
         
         public struct mi_sugg {     // dummy tuple, for memb-type prefixes in return 
             public string str_op ; 

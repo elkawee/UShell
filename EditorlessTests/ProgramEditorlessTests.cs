@@ -22,6 +22,7 @@ using MGRX = MainGrammar.MainGrammarRX;
 namespace EditorlessTests {
     class ProgramEditorlessTests {
         static void Main(string[] args) {
+
             Test1();
             Test2();
             Test3_Fans_and_Literals();
@@ -30,9 +31,11 @@ namespace EditorlessTests {
             Console.WriteLine ("============ outsiders ============== " );
             TypeMapping.LightJSonAdapter.Test1();
 
-            Console.ReadLine();
-        }
+            GreenCameraTest();
 
+            Console.ReadLine();
+
+        }
 
 
 
@@ -41,6 +44,7 @@ namespace EditorlessTests {
             var parse_matches = TestMG1.RUN_with_rest(startProd,TranslateEntry.LexxAndStripWS(arg));
             return parse_matches.First().N;
         }
+
 
         public static void Test1() {
             //LexxAndRun( ".*foo -> x <- y  -> z " );
@@ -178,17 +182,60 @@ namespace EditorlessTests {
 
         }
 
+        public static void GreenCameraTest() { 
 
+        #if NetworklessShell
+            var go = new GameObject();
+            go.AddComponent<Camera>();
+            go.GetComponent<Camera>().name = "foo" ;
+
+            Resources.roots = new [] { go } ;
+            
+            //var query = ">> :Camera {.name == @\"foo\"} .matrix <- @[[1,1,1,1],[2,2,2,2],[3,3,3,3],[4,4,4,4]]" ; 
+            var query = ">> :Camera .%projectionMatrix <- @[[1,1,1,1],[2,2,2,2],[3,3,3,3],[4,4,4,4]]" ; 
+
+            var GramE = new GrammarEntry { 
+                StartProd      = MG.ProvStart , 
+                TR_constructor = ( prov_start_node ) => new ProvStartTU ( (MG.ProvStartNode)  prov_start_node ) 
+            };
+            var transl_LHS = new TranslateLHS { 
+                preCH_LHS = null ,
+                scope = new CH_closedScope() 
+            };
+
+            var compilat = TranslateEntry.TranslateFully ( query , GramE , transl_LHS ) ;
+
+            var MM = new MemMapper(); 
+            var res = Evaluate.Eval ( compilat , MM ) ; 
+
+            Console.WriteLine ( res ) ; 
+        
+        #endif 
+
+
+        }
     }
 
 
     public class TestMG1 : MG {
         public class MemA_andOptAssign : NamedNode {
-            public MemAVTNode   memavt_node   { get { return (MemAVTNode) children[0]; } }
-            public AssignVTNode assignvt_node { get { return children.Length > 1 ?(AssignVTNode) children[1] : null ; } }
+            public MemANode      memavt_node   { get { return (MemANode) children[0]; } }
+            public DeclStarNode  declStarNode  => children[1] as DeclStarNode;                  // <- bin mir nicht mehr so sicher, ob das funktioniert 
+            public AssignVTNode  assignvt_node { get { return children.Length > 2 ?(AssignVTNode) children[2] : null ; } }
         }
-        public static PI TestStart = Prod<MemA_andOptAssign> ( SEQ ( MG.MemAVT , MG.AssignVT ));
-        public static PI TestStartRX = Prod<MemA_andOptAssign> ( SEQ ( MGRX.MemAVT_RX , OR ( MG.AssignVT , EPSILON() )));
+
+        /*
+            Verhalten Komposition 
+                - SEQ( ... , OR( ... , EPSILON ) ) 
+                - SEQ( ... , somethingSTAR() ) 
+            
+            bezgl der laenge des children Arrays fuer verschiedene Matches ? - ich weiss es einfach nicht mehr , verdommt 
+
+            ... ich 
+        */
+
+        public static PI TestStart   = Prod<MemA_andOptAssign> ( SEQ ( MG.MemA        , MG.DeclStar ,  MG.AssignVT ));
+        public static PI TestStartRX = Prod<MemA_andOptAssign> ( SEQ ( MGRX.MemA      , MG.DeclStar ,  OR ( MG.AssignVT , EPSILON() )));
     }
 
      public class TestTR : TranslationUnit {
@@ -269,7 +316,10 @@ namespace EditorlessTests {
             return sc;
 
         }
+   
     }
+
+    
 
 
 

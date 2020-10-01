@@ -11,7 +11,7 @@ using System.IO;
 
 using ShellCommon;
 
-
+using OPS = Operations.Operations ;
 using MainGrammar;  // Operations lives in this namespace atm -- TODO 
 
 using ParserComb;
@@ -23,6 +23,7 @@ using SGA = SuggestionTree.SuggTAdapter;
 
 // for temporary glue-code sizzle that is supposed to be moved elsewhere eventually 
 public static class TMP_dumping_ground {
+    #if null 
     public class TMP_RX_Grammar : MGRX {
 
         public class TestStartRXNode : NamedNode { 
@@ -67,9 +68,9 @@ public static class TMP_dumping_ground {
             return c_out ;
         }
     }
+    #endif
 
     public static NamedNode GetAST_ptokBase ( IEnumerable<PTokBase> toksBase ) {
-        //var Stripped = TranslateEntry.LexxAndStripWS( str );
 
         var Stripped = toksBase.Where ( tok => tok is PTok).Select ( tok => (PTok) tok ) ;
             /*
@@ -77,15 +78,15 @@ public static class TMP_dumping_ground {
             also : how to deal with cursor pos beyond the end of an incomplete parse ? ( analog problem to synced walking for Colorize() in the console ) 
             */
         GrammarEntry GE = new GrammarEntry { 
-            StartProd       = TMP_RX_Grammar.TestStartRX , 
+            StartProd       = MGRX.ProvStartRX , 
             /* 
                 preCH_in : 
                 the first mandatory SG operator acts on an implicit instance of a dummy type ( the PhantomRoot ) 
             */ 
-            TR_constructor  = (NN ) => new TestStartRXTU((TMP_RX_Grammar.TestStartRXNode) NN ) 
+            TR_constructor  = (NN ) => new ProvStartTU_RX((MainGrammarRX.ProvStartNodeRX) NN ) 
         };
         TranslateLHS TR_lhs = new TranslateLHS { 
-            preCH_LHS = new adapter_preCH ( new TypedSingleCH<GameObject>() ) ,
+            preCH_LHS = null ,  //new adapter_preCH ( new TypedSingleCH<GameObject>() ) ,
             scope     = new CH_closedScope()
         };
         return TranslateEntry.ScopePartial( Stripped , GE , TR_lhs);
@@ -94,6 +95,9 @@ public static class TMP_dumping_ground {
 
 
 public class ShellPeer {
+
+    public static bool use_analyz0r = false ;
+
     public TcpClient CLI;
     public LightJsonTCPAdapter JAdapter;
     
@@ -168,9 +172,9 @@ public class ShellPeer {
 
     public RESP_Base Multiplex ( REQ_Base request ) {
         if ( request is AC_Req ) { 
-            return     Operations.AC( (AC_Req) request , TMP_dumping_ground.GetAST_ptokBase ) ;
+            return     OPS.AC( (AC_Req) request , TMP_dumping_ground.GetAST_ptokBase ) ;
         } else if ( request is EVAL_Req ) {
-            return new EVAL_Resp {};
+            return     OPS.EVAL_stateless ( (EVAL_Req) request , analyz0r: use_analyz0r) ;
         } else throw new NotImplementedException();
     }
     #endregion 

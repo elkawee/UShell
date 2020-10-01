@@ -4,13 +4,12 @@ using System.Linq;
 using System.Text;
 
 using MainGrammar;
-//using SUH = Shell.ShellUtiltyHacks;
 
-    /* 
-    all of this was moved to ServerNetworkGlue 
-    */ 
 
 namespace ShellCommon {
+
+
+    
 
     static class SUH { // repeated for decoupling and future refactoring 
         public static string NSpace ( int count ) {

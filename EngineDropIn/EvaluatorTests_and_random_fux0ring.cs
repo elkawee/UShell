@@ -179,10 +179,10 @@ public static class Evaluate {
         var compilat = TranslateEntry.TranslateFully(strExpr, GE , trans_LHS);
         scope_out = compilat.deltaScope.close();
 
-#if todo_fixme   // external refs in the scopes still need implementation ( done . todo plug this shit in ) 
+#if todo_fixme             // external refs in the scopes still need implementation ( done . todo plug this shit in ) 
         foreach(var sc_ref in compilat.ownDecls) scope_out = (ClosedScope)scope_out.decl(sc_ref);
 #endif
-        compilat.run(MM);  /*atm the MM keeps references on tmp columns around forever - some pruning mechanism is needed */
+        compilat.run(MM);  // atm the MM keeps references on tmp columns around forever - some pruning mechanism is needed 
         VBoxTU last_VBT = compilat.VBoxTrs.Last();
         return MM.getGen(last_VBT.CH_out);
     }

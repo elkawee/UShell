@@ -35,8 +35,11 @@ namespace TranslateAndEval {
             TypedCH currentCH = CH_target;
             MemEdges = new List<MemberInfo>();
             VBoxEdgeCount = 0;
-
-            while ( true ) {
+            /*
+                Search backwards until a reference type is found ( relies on ColumnHeaders paralleling Instantiated Columns in layout ) 
+                - the check for .IsClass : could it being independent from isMemEdge cause problems? ( this only searches for a reference to do in place mutati, ColumnLayouts _should_ be completely independent of that  ) 
+            */
+            while ( true ) {  
                 VBoxTU TR = currentCH.DataSrc;
                 if ( TR == null ) throw new Exception();    // Anchor not found but chain at end 
                 VBoxEdgeCount += 1 ;
@@ -49,94 +52,6 @@ namespace TranslateAndEval {
             }
         }
     }
-
-    public class Assign_VBXTU : VBoxTU_pIN_pOUT {
-        MG.AssignVTNode AsgNode { get ; set ;}
-
-        
-
-        
-        preCH preCH_ref ; // from scope 
-        public bool fromConstant => AsgNode.SAN.type == MG.SingleAssignNode.typeE.json ;
-
-        /*
-            assignments are supposed to be completely transparent - except for their values of course 
-            e.g. there is no detectable difference between : 
-            ..some_int_field <- @3.1415 <restExpr>        and       ..some_int_field <restExpr>
-            for <restExpr>, particularly for its in-typing
-
-            ergo: derive out-type soley by copying the in-type 
-        */
-
-        public Assign_VBXTU ( preCH LHS , MG.AssignVTNode AssNode) {
-            this.AsgNode = AssNode;
-            backing_preCH_in  = LHS;
-            backing_preCH_out  = new deferred_preCH ( () => new TTuple { PayT = preCH_in.PayT , isMulti = false } , dataSrc: this  );
-        }
-
-        public override preCH_deltaScope scope(preCH_deltaScope SC) {
-            if ( AsgNode.SAN.type == MG.SingleAssignNode.typeE.dollar ||
-                 AsgNode.SAN.type == MG.SingleAssignNode.typeE.sharp  ) 
-            {
-                /*
-                    in this case payload types of in_Column and ref_column might differ, but must : ( in_Type isAssignableFrom ref_Type ) 
-                */
-                    SC = SC.addRef( AsgNode.SAN.name , out preCH_ref) ;                   // might throw ScopeFindException : ScopeException  -- decision on handling needs to be elswhere though
-                    
-            } else {                     // json constant 
-                /* 
-                    in this case the json adapter is tasked with producing the exact type of the assinment target 
-                    interesting edge case : 
-                    one would expect
-
-                    @some_val_1 -> x ; < Expr_1 >  ..some_field_1 <- $x                 to behave identically to :
-                                       < Expr_1 >  ..some_field_1 <- @some_val_1
-                    
-                    with regards to success of type conversion - this needs special attention in the json_adapter parts
-                    ( this also means, that there might be cases in which x can't be typed finally. when it is free_standing :  in an interactive session : 
-                      like : 
-                      @[ 1,2,3 ] -> X <ENTER>
-                      ) ... allow JSonVal as type for variables ? ... treat them specially ? ... special column type ? special form of IsAssignableFrom for the normalized subset of c#  types 
-                   
-                */ 
-                // case of assigning the a constant dircectly to a field , the exact type needed is known directly 
-                preCH_ref = new deferred_preCH ( () => new TTuple { PayT = preCH_in.PayT , isMulti = false } , dataSrc: null );
-
-            }
-            foreach ( string decl in AsgNode.decls ) SC = SC.decl ( decl , preCH_out) ;
-            return SC;
-        }
-        
-       
-        public override IEnumerable<OPCode> emit ( ) {
-            var CH_tmp  = preCH_ref.CH;
-            var opcodes = new List<OPCode>();
-            if ( fromConstant ) {
-                SObject Value = TypeMapping.LightJSonAdapter.FromJson( 
-                    (LightJson.JsonValue)AsgNode.SAN.JSonVal,
-                    CH_tmp.ttuple.PayT ) ; 
-                opcodes.Add ( OPGEN.MK_const( CH_tmp , Value ) );
-            }
-
-            var Anchor = new MemA_Anchor( CH_in ) ;                                // CH_in or CH_out doesn't matter for the anchor finding algorithm 
-                                                                                   // it does matter for the OPCode - it assumes edges are counted from CH_in's boxes ( CH_out's are created by itself ) 
-            //                   primitive assign over a (RefT -> RefT)-edge 
-            Action<VBox,SObject> PrimA_RefRef = (vbox,val_obj) => {
-                for ( int i = 0 ; i<Anchor.VBoxEdgeCount ; i ++ ) {
-                    vbox = (vbox as VBoxSingle).pred();
-                }
-                D.Assert( Anchor.MemEdges.Count() == 1 ) ;
-                (Anchor.MemEdges[0] as FieldInfo).SetValue( vbox.value() , val_obj );   
-            } ;
-
-            opcodes.Add ( OPGEN.MK_OP_Assign_Dollar(CH_in,CH_out,preCH_ref.CH,PrimA_RefRef) );
-
-            // todo ... all the other cases 
-            return opcodes ;
-        }
-    }
-
-
     public class __depricated_MemA_VBXTU : VBoxTU_pIN_pOUT , VBoxTUMem {   // TOTAL! fucking! hackjob -- needs redoing ASAP 
         MG.MemAVTNode MAVTNode { get ; set;}
 
@@ -213,7 +128,118 @@ namespace TranslateAndEval {
     // next up : do MemA_VBXTU properly 
     // // // // // // // // // // // // // // // // // // // // 
 
-    public class MemA_VBXTU : VBoxTU_pIN_pOUT , VBoxTUMem { 
+
+
+
+    public class Assign_VBXTU : VBoxTU_pIN_pOUT {
+        MG.AssignVTNode AsgNode { get ; set ;}
+
+        
+
+        
+        preCH preCH_ref ; // from scope 
+        public bool fromConstant => AsgNode.SAN.type == MG.SingleAssignNode.typeE.json ;
+
+        /*
+            assignments are supposed to be completely transparent - except for their values of course 
+            e.g. there is no detectable difference between : 
+            ..some_int_field <- @3.1415 <restExpr>        and       ..some_int_field <restExpr>
+            for <restExpr>, particularly for its in-typing
+
+            ergo: derive out-type soley by copying the in-type 
+        */
+
+        public Assign_VBXTU ( preCH LHS , MG.AssignVTNode AssNode) {
+            this.AsgNode = AssNode;
+            backing_preCH_in  = LHS;
+            backing_preCH_out  = new deferred_preCH ( () => new TTuple { PayT = preCH_in.PayT , isMulti = false } , dataSrc: this  );
+        }
+
+        public override preCH_deltaScope scope(preCH_deltaScope SC) {
+            if ( AsgNode.SAN.type == MG.SingleAssignNode.typeE.dollar ||
+                 AsgNode.SAN.type == MG.SingleAssignNode.typeE.sharp  ) 
+            {
+                /*
+                    in this case payload types of in_Column and ref_column might differ, but must : ( in_Type isAssignableFrom ref_Type ) 
+                */
+                    SC = SC.addRef( AsgNode.SAN.name , out preCH_ref) ;                   // might throw ScopeFindException : ScopeException  -- decision on handling needs to be elswhere though
+                    
+            } else {                     // json constant 
+                /* 
+                    in this case the json adapter is tasked with producing the exact type of the assinment target 
+                    interesting edge case : 
+                    one would expect
+
+                    @some_val_1 -> x ; < Expr_1 >  ..some_field_1 <- $x                 to behave identically to :
+                                       < Expr_1 >  ..some_field_1 <- @some_val_1
+                    
+                    with regards to success of type conversion - this needs special attention in the json_adapter parts
+                    ( this also means, that there might be cases in which x can't be typed finally. when it is free_standing :  in an interactive session : 
+                      like : 
+                      @[ 1,2,3 ] -> X <ENTER>
+                      ) ... allow JSonVal as type for variables ? ... treat them specially ? ... special column type ? special form of IsAssignableFrom for the normalized subset of c#  types 
+                   
+                */ 
+                // case of assigning the a constant dircectly to a field , the exact type needed is known directly 
+                preCH_ref = new deferred_preCH ( () => new TTuple { PayT = preCH_in.PayT , isMulti = false } , dataSrc: null );
+
+            }
+            foreach ( string decl in AsgNode.decls ) SC = SC.decl ( decl , preCH_out) ;
+            return SC;
+        }
+        
+       
+        public override IEnumerable<OPCode> emit ( ) {
+            var CH_tmp  = preCH_ref.CH;
+            var opcodes = new List<OPCode>();
+            if ( fromConstant ) {
+                SObject Value = TypeMapping.LightJSonAdapter.FromJson( 
+                    (LightJson.JsonValue)AsgNode.SAN.JSonVal,
+                    CH_tmp.ttuple.PayT ) ; 
+                opcodes.Add ( OPGEN.MK_const( CH_tmp , Value ) );
+            } 
+
+            // dunno much about these lambdas, might be better to push this functionality into individual OPCodes 
+
+            var Anchor = new MemA_Anchor( CH_in ) ;                                // CH_in or CH_out doesn't matter for the anchor finding algorithm 
+                                                                                   // it does matter for the OPCode - it assumes edges are counted from CH_in's boxes ( CH_out's are created by itself ) 
+
+            D.Assert( Anchor.MemEdges.Any() );  // allways ... obviously 
+
+            Action<VBox,SObject> PrimAssg = null ;
+
+            if ( Anchor.MemEdges[0] is FieldInfo ) {                                //    primitive assign over a (RefT -> RefT)-edge 
+
+                if ( Anchor.MemEdges.Count() > 1 ) throw new NotImplementedException(); // todo 
+                PrimAssg = (vbox,val_obj) => {
+                    for ( int i = 0 ; i<Anchor.VBoxEdgeCount ; i ++ ) {    // walk back to instance of closest reference type ( superfluous atm ) 
+                        vbox = (vbox as VBoxSingle).pred();
+                    }
+                    (Anchor.MemEdges[0] as FieldInfo).SetValue( vbox.value() , val_obj );   
+                } ;
+            } else if ( Anchor.MemEdges[0] is PropertyInfo ) {
+                if ( Anchor.MemEdges.Count() > 1 ) throw new NotImplementedException(); // todo 
+                PrimAssg = ( vbox , val_obj ) => {
+                    VBox pred = (vbox as VBoxSingle).pred();                // again ... todo 
+                    (Anchor.MemEdges[0] as PropertyInfo ).GetSetMethod().Invoke( pred.value() , new object[] { val_obj } );
+                };
+            } else { 
+                throw new NotImplementedException(); // todo 
+            }
+
+            // calling properties on value types ??? <- needs rt-emission of IL assembly - see experiments/PropertiesOnValueTypes 
+
+            opcodes.Add ( OPGEN.MK_OP_Assign_Dollar(CH_in,CH_out,preCH_ref.CH,PrimAssg) );
+
+            // todo ... all the other cases 
+            return opcodes ;
+        }
+    }
+
+
+
+    public class 
+    MemA_VBXTU : VBoxTU_pIN_pOUT , VBoxTUMem { 
         /* not strictly needed, just for ease of debugging/reasoning 
          * if there is an execution order mishap of "collapsing preCHs before scoping" that _should_ _theoretically_ 
          * throw at the end of the preCH chain that starts with the preCH_in passed to the constructor of this type 
@@ -231,7 +257,7 @@ namespace TranslateAndEval {
         public TTuple TypeDerive(){
             if( !is_scoped ) throw new Exception();
 
-            BindingFlags BI = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.ExactBinding;
+            BindingFlags BI = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.ExactBinding | BindingFlags.Instance | BindingFlags.Static;
 
             Func<Type,string,MemberInfo> GetMemb = (teh_type,teh_name) => {
                 var res = teh_type.GetMember(teh_name , BI );
@@ -657,10 +683,10 @@ namespace TranslateAndEval {
     {
         public override VBoxTU[] VBoxTUs => primaryTU.VBoxTUs.Concat( assigns.SelectMany ( asg => asg.VBoxTUs)).ToArray();
 
-        TranslationUnit      primaryTU         = null; 
-        preCH                primary_preCH_out = null ;
-        List<Assign_VBXTU>   assigns           = new List<Assign_VBXTU>();
-        MG.PrimitiveStepNode primtv_step_node  = null;
+        protected TranslationUnit      primaryTU         = null; 
+        protected preCH                primary_preCH_out = null ;
+        protected List<Assign_VBXTU>   assigns           = new List<Assign_VBXTU>();
+        protected MG.PrimitiveStepNode primtv_step_node  = null;
         
         public preCH                preCH_out         = null;
 
@@ -695,6 +721,7 @@ namespace TranslateAndEval {
             }
             preCH_out = current_preCH_out;
         }
+        protected PrimitveStepTU () {}
 
         public override preCH_deltaScope scope(preCH_deltaScope c)
         {
@@ -729,6 +756,8 @@ namespace TranslateAndEval {
             }
             prim_Steps = L.ToArray();
         }
+
+        protected ProvStartTU(){}
 
         public override IEnumerable<OPCode> emit() => root_SG_edge.emit().Concat( prim_Steps.SelectMany( ps => ps.emit() ) );
 

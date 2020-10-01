@@ -264,7 +264,7 @@ namespace MainGrammar {
             public bool isSharpRef => children[1] is SharpRefNode ;
             public bool isDollarRef=> children[1] is DollarRefNode ; 
             
-            public RefNode RHS_ref => isRef? children[1] as RefNode : null ;
+            public RefNode RHS_ref => children[1] as RefNode  ;
             public string  json    => isRef? null : TermPay( children[1] ) ;
         }
         public static PI EqualsFilter = Prod<EqualsFilterNode>( 
@@ -330,6 +330,8 @@ namespace MainGrammar {
 
         public static PI ProvStart = Prod<ProvStartNode> ( SEQ ( SG_Edge , STAR ( PrimitiveStep ))); // todo : or open with wariable ref 
         
+
+        
         #endregion 
 
 
@@ -364,7 +366,8 @@ namespace MainGrammar {
         const string SpecialPropOP_S              = @"(?'pay'%!)";
         const string WhitespaceS                  = @"(?'pay'\s+)"   ;
         const string JSonLiteral                  = @"(?'pay'@)" ; 
-        const string AssignmentOP_S               = @"(?'pay'<-|<=)";
+        //const string AssignmentOP_S               = @"(?'pay'<-|<=)";
+        const string AssignmentOP_S               = @"(?'pay'<-)";
         const string DeclOP_S                     = @"(?'pay'->)";
         const string Equals_Operator_S            = @"(?'pay'==)";
         

@@ -128,6 +128,69 @@ namespace TranslateAndEval {
             }
         }
 
+    public class MemA_VBX_TU_RX : MemA_VBXTU { 
+        public MemA_VBX_TU_RX ( preCH preCH_in , MGRX.MemANodeRX memA_node_rx ) : base ( preCH_in , memA_node_rx ) {
+            memA_node_rx.ACMembTypingCallback = () => 
+                preCH_in.PayT;
+        }
+    }
+    
+    public class PrimitveStepTU_RX : PrimitveStepTU {
+        public PrimitveStepTU_RX ( preCH preCH_in , MGRX.PrimitiveStepNode prim_step_node )  {
+            // pretty fucky - copy and paste job from the nonRX variant - needed though to plug in the RX constructors for child TUs
+            this.primtv_step_node = prim_step_node;       //
+            var primaryNN = primtv_step_node.children[0];
+            if        ( primaryNN is MG.SG_EdgeNode ) {
+
+                primaryTU           = new SG_EdgeTU( preCH_in , (MG.SG_EdgeNode) primaryNN ) ;
+                primary_preCH_out   = ((SG_EdgeTU) primaryTU).preCH_out;
+
+            } else if ( primaryNN is MG.MemANode ) {
+                var MemTU = new MemA_VBX_TU_RX(preCH_in , (MGRX.MemANodeRX) primaryNN) ;          //  type - patch I
+                primaryTU = MemTU;
+                primary_preCH_out = MemTU.preCH_out;
+            
+            } else if ( primaryNN is MG.FilterNode ) {
+                var filterTU = new FilterTU( preCH_in , (MG.FilterNode) primaryNN );
+                primaryTU = filterTU;
+                primary_preCH_out = filterTU.preCH_out;
+            } else if ( primaryNN is MG.FanNode ) {
+                var fanTU = new FanTU( preCH_in , (MG.FanNode) primaryNN) ;
+                primaryTU = fanTU;
+                primary_preCH_out = fanTU.pRHS;
+            } else throw new Exception();  // grammar changed or parser bug 
+
+            preCH current_preCH_out = primary_preCH_out;
+            foreach( var asgn_node in primtv_step_node.assigns) {
+                var asgn_TU = new Assign_VBXTU( current_preCH_out , asgn_node );
+                assigns.Add( asgn_TU);
+                current_preCH_out = asgn_TU.preCH_out;
+            }
+            preCH_out = current_preCH_out; 
+        }
+    }
+    
+    public class ProvStartTU_RX : ProvStartTU
+    {
+        public ProvStartTU_RX ( MGRX.ProvStartNode start_N ) {
+            root_SG_edge = new Root_SG_EdgeTU( start_N.startSG );  // todo, 
+            preCH current_preCH = root_SG_edge.preCH_out ;
+            var L = new List<PrimitveStepTU>();
+            foreach ( var prim_step in start_N.primSteps ) {
+                var TU = new PrimitveStepTU_RX(current_preCH , prim_step  );
+                current_preCH = TU.preCH_out;
+                L.Add ( TU ) ;
+            }
+            prim_Steps = L.ToArray();
+        }
+        /*
+        public override preCH_deltaScope scope(preCH_deltaScope c)
+        {
+            throw new NotImplementedException();
+        }
+        */
+    }
+
 
 
 }

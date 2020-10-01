@@ -10,6 +10,8 @@ using ParserComb;
 namespace MainGrammar { 
 
     public class MainGrammarRX : MainGrammar { 
+
+
         public class MemANodeRX : MemANode, ACableMemb {
             public Func<Type> ACMembTypingCallback {get;set;}
             public PTok refineOPTok = null ;
@@ -60,8 +62,8 @@ namespace MainGrammar {
 
         public static PI MemAVT_RX = Prod<MemAVTNode> ( SEQ ( MemARX , DeclStar));
 
-        public class TypeNameNodeRX : NamedNode , ACableTypeName { 
-            public string [] names = new string[0]; // contract : never null , absence of CS_name toks -> Array.Len == 0 
+        public class TypeNameNodeRX : TypeNameNode /* includes : NamedNode , ACableTypeName */ { 
+            //public string [] names = new string[0]; // contract : never null , absence of CS_name toks -> Array.Len == 0 
             public PTok   [] nameToks = null ;
             public override void build() {
                 nameToks = children.Where( nn => (nn is TermNode ) && TermEnum( nn ) ==  PTokE.CS_name ).Select(TermTok).ToArray(); 
@@ -76,12 +78,16 @@ namespace MainGrammar {
                                                                 TermP( PTokE.OP_colon )
                                                                      ));
                                                           
-        public class SG_EdgeNodeRX : NamedNode {
-            public string [] typefilter = new string[0];  // contract : never null , absence of CS_name toks -> Array.Len == 0 
+        public class SG_EdgeNodeRX : SG_EdgeNode {
+            //public string [] typefilter = new string[0];  // contract : never null , absence of CS_name toks -> Array.Len == 0 
             public TypeNameNodeRX typeNameNode = null ;
             public override void build() {
                var TNNs = children.Where ( nn => nn is TypeNameNodeRX ).Select( x => ( TypeNameNodeRX ) x ).ToArray();
-               if ( TNNs.Any()) typeNameNode = TNNs.Single();
+               if ( TNNs.Any()) { 
+                    typeNameNode = TNNs.Single();
+                    typefilter = typeNameNode.names;
+                }
+               
                // ... don't really care for the rest 
             }
         }
@@ -94,8 +100,33 @@ namespace MainGrammar {
                 ) ) ;
 
         public static PI RG_EdgeRX = Prod<RG_EdgeNode> ( SEQ ( MemAVT_RX , OR ( AssignVT , EPSILON() ) ));
+
         //                                                                        V'''' decls ?     V''' todo FanRX
         public static PI FanElemRX = Prod<FanElemNode> ( PLUS ( OR ( RG_EdgeRX , SG_EdgeRX ,         Fan ) ));
+
+
+        public static PI FilterRX = Prod<FilterNode> ( 
+            OR ( TypenameRX , 
+                 EqualsFilter ) );
+
+        public static PI PrimitiveStepRX = Prod<PrimitiveStepNode> ( SEQ ( 
+                OR (    SG_EdgeRX , 
+                        MemARX    , 
+                        FilterRX  , 
+                        Fan                 // TODO : FanRX 
+                        // Todo : VarRef 
+                        ) , 
+                DeclStar ,
+                STAR ( AssignVT )     // AssignVT includes DeclStar
+                ) );
+        
+        public class ProvStartNodeRX : ProvStartNode { 
+        }
+
+        
+        // TODO proper RX variant 
+        public static PI ProvStartRX = Prod<ProvStartNodeRX> ( SEQ ( SG_EdgeRX , STAR ( PrimitiveStepRX )));
+
 
 
     }

@@ -11,6 +11,7 @@ using PTok = MainGrammar.PTok;
 using PTokBase = MainGrammar.PTokBase;
 using PTokWhitespace = MainGrammar.PTokWhitespace;
 using MG = MainGrammar.MainGrammar;
+using MGRX = MainGrammar.MainGrammarRX;
 using D = System.Diagnostics.Debug;
 using ShellCommon;
 
@@ -66,7 +67,7 @@ namespace Shell {
         }
         /*
             the usual lazy jazz 
-            set of used/implemented dependency edges is limited though : 
+            set of used/implemented dependency edges is limited though : C:\Users\User\SRC\UShell\CoreGrammar\MainGrammar.cs
 
             AC   case : toks   -> string | toks -> col_itm
             edit case : string -> toks   | toks -> col_itm 
@@ -112,7 +113,7 @@ namespace Shell {
 
         public static ConsoleColor         defaultConsoleColor  = ConsoleColor.Gray;
         public static ConsoleColor         errorConsoleColor    = ConsoleColor.Red;
-        public static MG.PI                ColorizeStartProd    = MG.StartRX;
+        public static MG.PI                ColorizeStartProd    = MGRX.ProvStartRX;
 
         /*
             since there are little dependencies on the precise structure of col_itm sequence, 

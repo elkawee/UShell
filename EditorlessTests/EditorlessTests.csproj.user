@@ -3,4 +3,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartWorkingDirectory>C:\Users\User\SRC\UShell\AuxPythonShizzleMaNizzle\</StartWorkingDirectory>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'NetworklessShell|AnyCPU'">
+    <StartWorkingDirectory>C:\Users\User\SRC\UShell\AuxPythonShizzleMaNizzle\</StartWorkingDirectory>
+  </PropertyGroup>
 </Project>

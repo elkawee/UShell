@@ -32,6 +32,15 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'NetworklessShell|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\NetworklessShell\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;haveServerTypes NetworklessShell</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -39,7 +48,8 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="UnityEngine">
+    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL" Condition="'$(Configuration)' != 'NetworklessShell'">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\external_DLL\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
@@ -64,17 +74,27 @@
       <Project>{3d65f525-bc7c-4f9e-a2e8-07f7e9a7a10e}</Project>
       <Name>NetworkCommonTypes_Fake</Name>
     </ProjectReference>
-    <ProjectReference Include="..\FakeSuggTree\FakeSuggTree.csproj">
-      <Project>{9b7dceb3-108f-4c36-916d-108591793958}</Project>
-      <Name>FakeSuggTree</Name>
+    <ProjectReference Include="..\UEngineMock\UEngineMock.csproj" Condition="'$(Configuration)' == 'NetworklessShell'">
+      <Project>{8dca6fbe-aa68-4b34-9565-d26014e9c86a}</Project>
+      <Name>UEngineMock</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>
   <Target Name="AfterBuild">
   </Target>
   -->
+  <Target Name="DBG_log">
+    <Message Text="DefineConstants :  $(DefineConstants) ">
+    </Message>
+    <Message Text="Configuration :  $(Configuration) ">
+    </Message>
+    <Message Text="ProjectReference : @(ProjectReference)">
+    </Message>
+    <Message Text="Reference        : @(Reference)">
+    </Message>
+  </Target>
 </Project>

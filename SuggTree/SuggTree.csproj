@@ -30,6 +30,45 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'NetworklessShell|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\NetworklessShell\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;UnityEngineMock</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <Choose>
+    <When Condition="$(DefineConstants.Contains(UnityEngineMock))">
+      <PropertyGroup>
+        <SwitchDBG> Contains(UnityEngineMock) eval'd to true  </SwitchDBG>
+      </PropertyGroup>
+      <ItemGroup>
+
+        <ProjectReference Include="..\UEngineMock\UEngineMock.csproj">
+          <Project>{8dca6fbe-aa68-4b34-9565-d26014e9c86a}</Project>
+          <Name>UEngineMock</Name>
+        </ProjectReference>
+
+      </ItemGroup>
+    </When>
+    <When Condition="!$(DefineConstants.Contains(UnityEngineMock))">
+      <PropertyGroup>
+        <SwitchDBG> negagion OP worked   </SwitchDBG>
+      </PropertyGroup>
+      <ItemGroup>
+        <Reference Include="UnityEngine">
+          <HintPath>..\external_DLL\UnityEngine.dll</HintPath>
+        </Reference>
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <SwitchDBG> Otherwise clause was triggered </SwitchDBG>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
   <ItemGroup>
     <Reference Include="C5">
       <HintPath>..\external_DLL\C5.dll</HintPath>
@@ -40,9 +79,7 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="UnityEngine">
-      <HintPath>..\external_DLL\UnityEngine.dll</HintPath>
-    </Reference>
+  
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -54,9 +91,10 @@
       <Project>{60795826-abda-4afa-bdda-2f0fc3b1657e}</Project>
       <Name>CoreGrammar</Name>
     </ProjectReference>
+
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>
