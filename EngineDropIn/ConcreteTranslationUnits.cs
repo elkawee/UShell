@@ -470,31 +470,33 @@ namespace TranslateAndEval {
 
     public class FanElemTU:TranslationUnit {
         public readonly MG.FanElemNode fanElemNode ;
-        public readonly RG_EdgeTU []      rgEdge_TUs ;
+
+        public readonly PrimitveStepTU [] primStep_TUs;
         public readonly preCH          pLHS ;
-        public preCH                   pRHS => rgEdge_TUs.Length == 0 ?  pLHS : rgEdge_TUs.Last().preCH_out ;
+        public preCH                   pRHS => primStep_TUs.Length == 0 ?  pLHS : primStep_TUs.Last().preCH_out ;  // the grammar does not allow the len=0 case, .. but eh ... 
 
         public FanElemTU ( preCH pLHS , MG.FanElemNode fanElemNode ) {
             this.fanElemNode = fanElemNode;
             this.pLHS = pLHS;
-            var  L = new List<RG_EdgeTU>();
 
-            preCH currentLHS = pLHS;
-            foreach ( var rg_EdgeNode in fanElemNode.rgEdges ) {
-                var rgEdgeTU = new RG_EdgeTU(currentLHS , rg_EdgeNode );
-                currentLHS = rgEdgeTU.preCH_out;
-                L.Add( rgEdgeTU );
+            var L = new List<PrimitveStepTU>();
+            preCH current_LHS = pLHS ;
+            foreach ( var primStepNode in fanElemNode.primStepNodes  ){
+                var primStepTU = new PrimitveStepTU( current_LHS , primStepNode ) ;
+                current_LHS = primStepTU.preCH_out;
+                L.Add(primStepTU);
             }
-            rgEdge_TUs = L.ToArray();
+            primStep_TUs = L.ToArray();
+
         }
 
-        public override VBoxTU[] VBoxTUs => rgEdge_TUs.SelectMany( _ => _.VBoxTUs ).ToArray();
+        public override VBoxTU[] VBoxTUs => primStep_TUs.SelectMany( _ => _.VBoxTUs ).ToArray();
 
         public override preCH_deltaScope scope(preCH_deltaScope c) 
-            { foreach ( var rgEdgeTU in rgEdge_TUs ) c = rgEdgeTU.scope( c ) ; return c ; }
+            { foreach ( var primStepTU in primStep_TUs ) c = primStepTU.scope( c ) ; return c ; }
 
         public override IEnumerable<OPCode> emit() 
-            {  foreach ( var rgEdgeTU in rgEdge_TUs ) foreach ( var opC in rgEdgeTU.emit() ) yield return opC; }
+            {  foreach ( var primStepTU in primStep_TUs ) foreach ( var opC in primStepTU.emit() ) yield return opC; }
     }
     /*
         todo : 
@@ -504,10 +506,25 @@ namespace TranslateAndEval {
     */
 
     public class FanTU:TranslationUnit {           
-        public readonly preCH          pLHS ;
-        public          preCH          pRHS  => fanElemTUs.Length == 0 ?  pLHS : fanElemTUs.Last().pRHS ;
-        public readonly FanElemTU []   fanElemTUs;
+
+
+        /*
+            In general " { FanElem1 , FanElem2 , ... } " is semantically identical to : " {FanElem1} {FanElem2} ... " 
+            thus every comma separated FanElem gets its own BShift
+            types of these BShifts are identical 
+            contents of these Columns are identical too, save for filtering 
+            ( a BShift column is an ordered subset of all BShift columns to its left belonging to the same Fan ) 
+        */
+
+
         public readonly MG.FanNode     fanNode;
+        public readonly preCH          pLHS ;
+        public readonly preCH          pRHS ;
+
+        public readonly FanElemTU       []   fanElemTUs;
+        public readonly BShiftVBTR      []   bShiftTUs;
+        public readonly TranslationUnit []   TUs;        // all generated top-level TUS in execution order [ fanElem Bshift fanElem BShift ... ] 
+        
 
         public class BShiftVBTR:VBoxTU_pIN_pOUT {
             
@@ -529,46 +546,48 @@ namespace TranslateAndEval {
 
         }
 
-        
-        List<BShiftVBTR>  BShifts = new List<BShiftVBTR>();
-
         public FanTU (preCH pLHS , MG.FanNode fanNode ) {
             this.pLHS            = pLHS;
             this.fanNode         = fanNode;
 
-            preCH           fanElem_LHS_pCH       = pLHS;  // in-column for the [ fan-elem , barrier-shift] group 
+            
 
             // defensive programming : assume FanElems to be able to be empty of VBoxTUs even if they might end up not being in the final grammar 
             // this does pose a problem with the dataSrc field - cuz it could be the in-data src of the whole fan 
 
-            var LfanElemTUs = new List<FanElemTU>();
+            var L_FanElems  = new List<FanElemTU>();
+            var L_BShifts   = new List<BShiftVBTR>();
+            var L_allTUs    = new List<TranslationUnit>();
 
-            VBoxTU current_dataSrc = pLHS.dataSrc;
-
+            preCH           fanElem_LHS_pCH       = pLHS;  // in-column for the [ fan-elem , barrier-shift] group 
+            
             foreach ( var fanElemNode in fanNode.elems ) {
                 var currFanElemTU = new FanElemTU( fanElem_LHS_pCH , fanElemNode );
+                L_FanElems.Add ( currFanElemTU );
+                L_allTUs.Add( currFanElemTU );
 
-                LfanElemTUs.Add ( currFanElemTU );
-                var BShift = new BShiftVBTR( currFanElemTU.pRHS ,  fanElem_LHS_pCH ) ;  // only need to go back to the last BShift 
-                BShifts.Add ( BShift );
+                var BShift = new BShiftVBTR( currFanElemTU.pRHS ,  fanElem_LHS_pCH ) ;  // only need to go back to the last BShift ( lastFanElem.lhsCH == rhsCH of the BShift that preceded it , or the in-CH of the entire FAN if first FanElem  ) 
+                L_BShifts.Add ( BShift );
+                L_allTUs.Add(BShift);
                 fanElem_LHS_pCH = BShift.preCH_out;
             }
-            fanElemTUs = LfanElemTUs.ToArray();
+            fanElemTUs = L_FanElems.ToArray();
+            bShiftTUs  = L_BShifts.ToArray();
+            TUs        = L_allTUs.ToArray();
+
+            pRHS = fanElem_LHS_pCH; // === rhsCH of last BShift or FAN-lhsCH if 0-elem fan 
         }
 
         public override preCH_deltaScope scope(preCH_deltaScope pdScope) {
-            foreach ( var fETU in fanElemTUs )  pdScope = fETU.scope ( pdScope );
+            foreach ( var fETU in fanElemTUs )  pdScope = fETU.scope ( pdScope );  // only fan elems - cuz BShifts are phantom tingies with no relation to syntactic elements that don't do, or use any scoping thingamabobs 
             return pdScope;
         }
 
 
         public override IEnumerable<OPCode> emit() {
-            return fanElemTUs
-                .Zip( BShifts , 
-                                (fElem , bShift )=> fElem.emit().Concat( bShift.emit() ) )
-                .SelectMany(_=>_);
+            return TUs.SelectMany ( tu => tu.emit());
         }
-        public override VBoxTU[] VBoxTUs => fanElemTUs.Zip( BShifts , ( fE ,bShift ) => fE.VBoxTUs.Concat( bShift.VBoxTUs ) ).SelectMany( _=>_).ToArray();
+        public override VBoxTU[] VBoxTUs => TUs.SelectMany( _ => _.VBoxTUs ).ToArray();
 
     }
 
@@ -635,8 +654,9 @@ namespace TranslateAndEval {
             } else { // JSON 
                 Type ser_target_type = preCH_in.PayT;
                 eq_RHS_CH = preCH.Instantiate( new TTuple{ PayT = ser_target_type , isMulti = false } , this );
-                SObject ser_payload = TypeMapping.LightJSonAdapter.FromJson( eq_filter_node.json , ser_target_type ) ;
+                SObject ser_payload = TypeMapping.LightJSonAdapter.FromJson( (LightJson.JsonValue)eq_filter_node.json_value , ser_target_type ) ;
                 var const_op = OPGEN.MK_const ( eq_RHS_CH , ser_payload ) ;
+                L.Add(const_op );
 
             }
             var eq_filter = OPGEN.MK_EqualsFilter_SingleC ( CH_in ,  eq_RHS_CH , (SingleCH)  CH_out , true ) ;

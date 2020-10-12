@@ -29,7 +29,8 @@ public class Compilat {
     public void run( MemMapper MM ) {    // <- will later need a variant with explicit Context passed in 
         var Ctx = new Context();
         foreach(var op in OPs) op.fill(MM);
-        foreach(var op in OPs) op.eval(Ctx);
+        foreach(var op in OPs) 
+            op.eval(Ctx);
     }
 
     public Column run_WRes( MemMapper MM ) {
@@ -82,7 +83,9 @@ public static class TranslateEntry {
 
     //public static ParserComb.NamedNode LexxAndParse ( string arg ) { return  LexxAndParse( arg , TestMG1.TestStart ) ; }
     public static ParserComb.NamedNode LexxAndParse(string arg,ParserComb.Parser<Tok>.PI startProd) {
+        arg.NLSend("lexx and parse : ");
         var parse_matches = MG.RUN_with_rest(startProd,LexxAndStripWS(arg));
+        foreach ( var z in parse_matches ) z.rest.NLSendRec("pmatch_rest");
         return parse_matches.First().N;
     }
 
@@ -95,11 +98,19 @@ public static class TranslateEntry {
         var deltaScope    = new preCH_deltaScope ( eval_LHS.scope );
         preCH_deltaScope combinedScope = TR.scope(deltaScope);
 
+        var OPs = TR.emit().ToArray();
+        var VBoxTrs = TR.VBoxTUs ;
+
+        // basic compile sanity 
+        // if ( ! ( VBoxTrs.SelectMany ( vbx => vbx.emit()).Count() == OPs.Length ))throw new Exception(); 
+        // figgn! ... im allgemeinen stimmt das gar nicht der OPSuiGen ist in keiner VBoxTU enthalten, so wie das im Moment generiert wird 
+        // --- 
+
         return new Compilat {
             deltaScope = (CH_deltaScope)combinedScope.instantiate(),
-            OPs = TR.emit().ToArray(),
+            OPs = OPs,
             src = src,
-            VBoxTrs = TR.VBoxTUs
+            VBoxTrs = VBoxTrs
         };
     }
 

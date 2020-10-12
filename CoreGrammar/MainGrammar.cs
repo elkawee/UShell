@@ -234,25 +234,9 @@ namespace MainGrammar {
 
 
 
-        #region FAN
+        #region FAN_forward_decl
         public static PI_defer  Fan = MKProdDefer<FanNode>();
 
-        public class FanElemNode : NamedNode {
-            public RG_EdgeNode [] rgEdges;
-            public override void build() => rgEdges = children.Select( ch => ( RG_EdgeNode) ch ).ToArray();  
-        }
-        public static PI FanElem = Prod<FanElemNode> ( PLUS ( OR ( RG_Edge , SG_Edge , Fan ) ));
-
-        public class FanNode : NamedNode {
-            public FanElemNode [] elems ;
-            public override void build() => elems = children.Where( ch => ! (ch is TermNode )) .Select( ch => ( FanElemNode) ch ).ToArray();  
-        }
-        
-        static             PI  _Fan = SETProdDefer( Fan , 
-            SEQ ( 
-                TermP( PTokE.curlyBRL ) ,
-                SEQ ( FanElem , STAR ( SEQ ( TermP( PTokE.OP_comma ) , FanElem ))),
-                TermP( PTokE.curlyBRR) ) );
         
 
         #endregion
@@ -265,7 +249,9 @@ namespace MainGrammar {
             public bool isDollarRef=> children[1] is DollarRefNode ; 
             
             public RefNode RHS_ref => children[1] as RefNode  ;
-            public string  json    => isRef? null : TermPay( children[1] ) ;
+            public string  json_literal    => isRef? null : TermPay( children[1] ) ; // raw incluing the "@" 
+            public object  json_value      => isRef? null : TermJSON( children[1] );
+            //public object  json_value
         }
         public static PI EqualsFilter = Prod<EqualsFilterNode>( 
             SEQ ( TermP ( PTokE.OP_equals) , 
@@ -296,7 +282,7 @@ namespace MainGrammar {
          * assignment of GameObjects or Components are a special, depending on the Assign-value-target 
          *   GO .*field <- GO          // simply assign a ref 
          *   GO .*field <- Component   // ditto 
-         *   GO <- GO                  // add Child ?? 
+         *   GO <- GO                  // add Child ?? ( replaceChild seems more reasonable ) 
          *   GO <- Component           // CreateComponent() 
          * 
          * for now, SG_Edge is not a valid Assign-value-target ( Assigning a Component to a GameObject needs special treatment ) 
@@ -314,6 +300,34 @@ namespace MainGrammar {
                 DeclStar ,
                 STAR ( AssignVT )     // AssignVT includes DeclStar
                 ) );
+        
+        #region FAN
+
+        public class FanElemNode : NamedNode {
+
+            public PrimitiveStepNode [] primStepNodes ;
+            public override void build() {
+
+                    primStepNodes = children.Select( _=> (PrimitiveStepNode)_).ToArray();
+                }
+        }
+
+        public static PI FanElem = Prod<FanElemNode> ( PLUS ( PrimitiveStep ));
+
+        public class FanNode : NamedNode {
+            public FanElemNode [] elems ;
+            public override void build() => elems = children.Where( ch => ! (ch is TermNode )) .Select( ch => ( FanElemNode) ch ).ToArray();  
+        }
+        
+        static             PI  _Fan = SETProdDefer( Fan , 
+            SEQ ( 
+                TermP( PTokE.curlyBRL ) ,
+                SEQ ( FanElem , STAR ( SEQ ( TermP( PTokE.OP_comma ) , FanElem ))),
+                TermP( PTokE.curlyBRR) ) );
+        
+        #endregion
+
+
 
         #region Start
         public class ProvStartNode : NamedNode {
@@ -328,7 +342,7 @@ namespace MainGrammar {
 
         // Subquery : must have non empty LHS , PLUS( PrimitiveStep ) 
 
-        public static PI ProvStart = Prod<ProvStartNode> ( SEQ ( SG_Edge , STAR ( PrimitiveStep ))); // todo : or open with wariable ref 
+        public static PI ProvStart = Prod<ProvStartNode> ( SEQ ( SG_Edge , STAR ( PrimitiveStep ))); // todo : or open with variable ref 
         
 
         
@@ -347,6 +361,13 @@ namespace MainGrammar {
         }
         public static PTok TermTok ( NamedNode N ) {
             try { return (N as TermNode).tok ;} catch ( Exception ) { throw new NNShapeException() ;}
+        }
+        public static object TermJSON ( NamedNode N ) { // again - don't want to carry JSonImplementation decision into this -- return type is currently LightJson.JSonValue
+            try { 
+                var termNode = (TermNode) N;
+                var jSonTok  = (PTokJSON) termNode.tok;
+                return jSonTok.payJSON;
+            } catch ( Exception ) { throw new NNShapeException() ;}
         }
 
         #endregion 

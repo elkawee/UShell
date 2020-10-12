@@ -189,6 +189,9 @@ namespace ParserComb {
         public static Seq_RG_PI_C SEQ ( PI p1 , PI p2 , PI p3 ) {
             return SEQ ( p1 , SEQ ( p2 , p3 ));
         }
+        public static Seq_RG_PI_C SEQ ( PI p1 , PI p2 , PI p3 , PI p4 ) {
+            return SEQ ( p1 , SEQ ( p2 , SEQ (p3, p4 ) ));
+        }
 
         #endregion
 
@@ -264,6 +267,15 @@ namespace ParserComb {
      
     }
 
+
+    /*
+        the primitve type to describe terminals to match against does not neccessarily need to be 
+        the token type itself 
+        for use cases like nameToken := ( someEnum , stringPayload ) 
+        match only against the enum
+        if terminals were to be defined  in terms of "nameToken"  Match(nameToken nt ) would need an override of Equals, 
+            or other similarly ugly cargo culting 
+    */
     public abstract class ParserTM<Tok,TokM> : Parser<Tok> { 
         
 
@@ -288,7 +300,59 @@ namespace ParserComb {
     }
 
     
+    // --------------------------------- 
+    
+    public static class Tests { 
+        
+        
+        public class Gramm1 : ParserTM<char , char> {
+            static Gramm1() { 
+                TokMatch = (char_tok , char_gramm) => char_tok == char_gramm ; 
+            }
+            
 
+            public class PrimENode : NamedNode {} 
+            public static PI PrimEdge = Prod<PrimENode> ( TermP('E') );
+
+            public class FanNode : NamedNode {}
+            public static PI_defer Fan = MKProdDefer<FanNode>();
+
+            public class PrimStepNode : NamedNode {} 
+            public static PI PrimStep = Prod<PrimStepNode> ( OR ( PrimEdge , Fan ) );
+
+            public class BasicFanContentNode : NamedNode {} 
+            public static PI BasicFanContent = Prod<BasicFanContentNode>( SEQ ( PrimStep , STAR( PrimStep )) );
+
+            public static PI _Fan = SETProdDefer ( Fan , SEQ ( 
+                                                                TermP('{') , 
+                                                                BasicFanContent , 
+                                                                STAR ( SEQ ( TermP(',' ), BasicFanContent)  ) , 
+                                                                TermP('}') 
+                                                                ));
+
+            public class StartNode : NamedNode {} 
+            public static PI Start = Prod<StartNode> ( SEQ( PrimStep , STAR( PrimStep) ) );
+
+
+            public static StartNode run_unique ( string sentence ) {
+                var matches = RUN_with_rest(Start , sentence ) ;
+                var full_matches = matches.Where( match => match.rest.Count() == 0 ).ToArray() ;
+                if ( ( ! full_matches.Any() ) || full_matches.Count() != 1 ) throw new Exception("could not match uniquely" ) ;
+                return (StartNode)full_matches.First().N;
+            }
+        
+        }
+
+        public static void TestMutualRecursion () {
+            Console.WriteLine ( Gramm1.run_unique("E{E}") );
+            Console.WriteLine ( Gramm1.run_unique("E{{E}}") );
+            Console.WriteLine ( Gramm1.run_unique("E{{{E}}}") );
+            Console.WriteLine ( Gramm1.run_unique("E{{{E,EE,E{E}}}}") );
+        }
+
+
+
+    }
     
 
 }

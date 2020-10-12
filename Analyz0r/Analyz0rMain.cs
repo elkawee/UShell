@@ -13,10 +13,13 @@ using SObject = System.Object;
 namespace Analyz0r
 {
     public static class A {
-        public static void JsonifyCompilat ( Compilat compilat  ) {
+        
+        
+        
+        public static void JsonifyCompilat ( Compilat compilat , string filename_postfix = ""  ) {
             var CHs = new HashSet<TypedCH>();
 
-            using(var SW = new StreamWriter(new FileStream("compilat.json",FileMode.Create))) {   // diagram in Nutshell 614 ...  wtf?
+            using(var SW = new StreamWriter(new FileStream("compilat"+filename_postfix+".json",FileMode.Create))) {   // diagram in Nutshell 614 ...  wtf?
 
                 foreach(var opcode in compilat.OPs) {
 
@@ -35,7 +38,7 @@ namespace Analyz0r
             }
 
         }
-        public static void JsonifyEval ( Compilat compilat , MemMapper MM ) {
+        public static void JsonifyEval ( Compilat compilat , MemMapper MM , string filename_postfix = "") {
             // fetch all the CHS -- the MM might have more but those can be ignored 
             var CHs = new HashSet<TypedCH> () ;
             foreach ( var opc in compilat.OPs ) foreach ( var ch in OP2CHs ( opc ) ) CHs.Add( ch ) ;
@@ -47,7 +50,7 @@ namespace Analyz0r
                 L.Add ( conv ( ch , column ));
             }
 
-            using ( var SW = new StreamWriter(new FileStream("eval.json",FileMode.Create))) {   // todo FileMode is guesswork --- and also doesn't work  XD 
+            using ( var SW = new StreamWriter(new FileStream("eval"+filename_postfix+".json",FileMode.Create))) {   // todo FileMode is guesswork --- and also doesn't work  XD 
                 foreach ( var j_obj in L ) SW.WriteLine ( j_obj ) ;
             }
         }
@@ -76,7 +79,7 @@ namespace Analyz0r
             var J_vb = new JsonObject();
             J_vb["kind"] = "vbox";
             J_vb["id"  ] = ID( VB );
-            J_vb["payload"] = VB.value().ToString();
+            J_vb["payload"] = VB.value() == null ? "null" : VB.value().ToString();
 
             var J_preds = new JsonArray();
             foreach ( var pred in VB.preds() ) J_preds.Add( ID(pred ));

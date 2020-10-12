@@ -329,7 +329,7 @@ namespace TranslateAndEval {
         public static BindingFlags BiF = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance ;
 
         // SEQ -> SEQ of infinite len 
-        public static IEnumerable<T> Cyclic<T>( this IEnumerable<T>  inSeq ) {
+        public static IEnumerable<T> NonEmptyCyclic<T>( this IEnumerable<T>  inSeq ) {
             if ( ! inSeq.Any() ) throw new Exception();
             var rator = inSeq.GetEnumerator();
             while ( true ) {

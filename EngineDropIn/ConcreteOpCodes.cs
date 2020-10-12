@@ -41,7 +41,7 @@ namespace TranslateAndEval {
         }
         public override void eval ( Context Cxt ) {
              
-            var data_rator = Col_aux.boxesT.Cyclic().GetEnumerator();
+            var data_rator = Col_aux.boxesT.NonEmptyCyclic().GetEnumerator();
             foreach ( VBox lhs_box in Col_in.boxesT ) {
                 data_rator.MoveNext();
                 var Datum = data_rator.Current;
@@ -672,7 +672,7 @@ namespace TranslateAndEval {
             // default behaviour in this case? 
             // i'm leaning towards silently nope-ing the entire in-Column - but leave this Exception uncought for now as a reminder that this question needs further thought 
 
-            if ( use_repeater ) arg_enum = Col_arg.valuesT.Cyclic().GetEnumerator();   
+            if ( use_repeater ) arg_enum = Col_arg.valuesT.NonEmptyCyclic().GetEnumerator();   
             else                arg_enum = Col_arg.valuesT.GetEnumerator();
             foreach ( var box_in in Col_in.boxesT ) {
                 if ( !arg_enum.MoveNext() ) throw new Exception("binary filter (repeater: " + use_repeater + ") : arg column exhausted before in_column -- this is likely bug in #fetch ") ;

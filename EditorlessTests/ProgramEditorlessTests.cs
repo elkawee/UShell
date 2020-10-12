@@ -30,6 +30,9 @@ namespace EditorlessTests {
 
             Console.WriteLine ("============ outsiders ============== " );
             TypeMapping.LightJSonAdapter.Test1();
+            TokLineTest.TestAll();
+            ParserComb.Tests.TestMutualRecursion();
+            Console.WriteLine("====== end outsiders ================= " ) ;
 
             GreenCameraTest();
 
@@ -169,7 +172,7 @@ namespace EditorlessTests {
 
             var compilat = TranslateEntry.TranslateFully( " { ..intMem1 -> x <- @4 ->x2  , ..intMem2  <- $x2 }  " , FanGE , trslLHS ) ;
 
-            if ( analyz0r ) Analyz0r.A.JsonifyCompilat( compilat );
+            if ( analyz0r ) Analyz0r.A.JsonifyCompilat( compilat , "_Test4_still_fanning" );
 
             var MM = new MemMapper();
             var LHS_column = MM.get( lhsCH) ;
@@ -178,20 +181,24 @@ namespace EditorlessTests {
             LHS_column.AddVal ( new TestcasesLHSType() ) ;
             Evaluate.Eval ( compilat , MM ) ;
 
-            if ( analyz0r ) Analyz0r.A.JsonifyEval ( compilat , MM ) ;
+            if ( analyz0r ) Analyz0r.A.JsonifyEval ( compilat , MM  ,  "_Test4_still_fanning") ;
 
         }
 
         public static void GreenCameraTest() { 
 
         #if NetworklessShell
-            var go = new GameObject();
-            go.AddComponent<Camera>();
-            go.GetComponent<Camera>().name = "foo" ;
+            Console.WriteLine( " --- GreenCameraTest() ---" ) ;
+            var go_foo_cam = new GameObject();
+            go_foo_cam.AddComponent<Camera>();
+            go_foo_cam.GetComponent<Camera>().name = "foo" ;
 
-            Resources.roots = new [] { go } ;
+            var go_other_cam = new GameObject();
+            go_other_cam.AddComponent<Camera>();
+
+            Resources.roots = new [] { go_foo_cam , go_other_cam} ;
             
-            //var query = ">> :Camera {.name == @\"foo\"} .matrix <- @[[1,1,1,1],[2,2,2,2],[3,3,3,3],[4,4,4,4]]" ; 
+            
             var query = ">> :Camera .%projectionMatrix <- @[[1,1,1,1],[2,2,2,2],[3,3,3,3],[4,4,4,4]]" ; 
 
             var GramE = new GrammarEntry { 
@@ -203,12 +210,24 @@ namespace EditorlessTests {
                 scope = new CH_closedScope() 
             };
 
-            var compilat = TranslateEntry.TranslateFully ( query , GramE , transl_LHS ) ;
+            var compilat1 = TranslateEntry.TranslateFully ( query , GramE , transl_LHS ) ;
 
             var MM = new MemMapper(); 
-            var res = Evaluate.Eval ( compilat , MM ) ; 
+            var res = Evaluate.Eval ( compilat1 , MM ) ; 
 
             Console.WriteLine ( res ) ; 
+            var query2 = ">> :Camera {.name == @\"foo\"} .projectionMatrix <- @[[1,1,1,1],[2,2,2,2],[3,3,3,3],[4,4,4,4]]" ; 
+            var compilat2 = TranslateEntry.TranslateFully ( query2 , GramE , transl_LHS ) ;
+
+            Analyz0r.A.JsonifyCompilat( compilat2 , "_GreenCam_with_fan" );
+
+            var res2 = Evaluate.Eval ( compilat2 , MM ) ; 
+            Console.WriteLine ( res2 ) ; 
+
+            Analyz0r.A.JsonifyEval ( compilat2 , MM  ,  "_GreenCam_with_fan") ;
+
+            Console.WriteLine( " --- GreenCameraTest() done ---" ) ;
+
         
         #endif 
 
