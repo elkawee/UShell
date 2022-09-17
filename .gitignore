@@ -1,0 +1,64 @@
+
+#  --- VS  tempfile clutter ---
+
+Temp/*
+Library/*
+.vs/*
+*/bin
+*/obj
+*.log
+# -- VS subprojects -- 
+
+**/Temp/*
+**/Library/*
+**/.vs/*
+**/bin/*
+**/obj/*
+
+# -- general purpose junk folders -- 
+stash
+
+
+# -- DropIn Makefile target --- 
+
+**/Assets/DropIN/*
+
+
+# -- analyz0r temp files -- 
+*.dot
+*.json 
+*.pdf 
+
+#  ---    emacs clutter  ---- 
+
+*~
+\#*
+.#*
+
+#  --- build targets ---
+
+**/Assets/StreamingAssets/*
+!Assets/StreamingAssets/BinAssets/.gitkeep
+
+# --- Unity 2018.4  clutter --- 
+# adapted from https://github.com/github/gitignore/blob/master/Unity.gitignore
+
+**/[Ll]ibrary/
+**/[Tt]emp/
+**/[Oo]bj/
+**/[Bb]uild/
+**/[Bb]uilds/
+**/[Ll]ogs/
+**/[Uu]ser[Ss]ettings/
+
+
+**/Assets/DropIN/*
+
+
+# .vs again because the the filter above won't catch subfolders 
+**/.vs/*
+
+
+
+
+
