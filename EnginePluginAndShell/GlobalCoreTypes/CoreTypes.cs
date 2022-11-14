@@ -9,7 +9,7 @@ using PTokBase = MainGrammar.PTokBase;
  * what they have in common, is that they can be defined without any dependency to the rest of the system 
  * 
  * point of this module is to be a leaf in inter module dependencies 
- * it can be included everywhere whithout second thought 
+ * it can be referenced everywhere whithout second thought 
  */
 
 namespace MainGrammar
