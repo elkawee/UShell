@@ -9,7 +9,7 @@ using System;
 using System.Threading;
 using System.IO;
 
-using ShellCommon;
+using CoreTypes ;
 
 using OPS = Operations.Operations ;
 using MainGrammar;  // Operations lives in this namespace atm -- TODO 

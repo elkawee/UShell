@@ -1,8 +1,9 @@
-﻿using ShellCommon;
+﻿
 using System;
 using LightJson;
 using System.Reflection;
 using System.Linq;
+using CoreTypes;
 
 public class EVAL_RespSerializer : CustomSerializerT<EVAL_Resp>
 {

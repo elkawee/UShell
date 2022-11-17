@@ -59,17 +59,21 @@
       <Project>{fc8ae15b-16d2-44c3-b51b-e59e5f494637}</Project>
       <Name>EngineDropInCommon</Name>
     </ProjectReference>
+    <ProjectReference Include="..\ExpTypeSerialization\ExpTypeSerialization.csproj">
+      <Project>{300b585d-d358-4343-8521-bd93c6d6262a}</Project>
+      <Name>ExpTypeSerialization</Name>
+    </ProjectReference>
     <ProjectReference Include="..\GlobalCoreTypes\GlobalCoreTypes.csproj">
       <Project>{e13f5b84-05b8-4e5b-97e8-afa57ff1212a}</Project>
       <Name>GlobalCoreTypes</Name>
     </ProjectReference>
-    <ProjectReference Include="..\NetworkCommonTypes\NetworkCommonTypes.csproj">
-      <Project>{b3de0098-4f79-4e4d-afe7-b0046d78f093}</Project>
-      <Name>NetworkCommonTypes</Name>
-    </ProjectReference>
     <ProjectReference Include="..\NLSPlain\NLSPlain.csproj">
       <Project>{e3bc072b-305e-4e71-9310-f6b2a5b8e69b}</Project>
       <Name>NLSPlain</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PatchedLightJson\PatchedLightJson.csproj">
+      <Project>{0d0290da-0401-4bd9-b383-49dbcfc4e7b2}</Project>
+      <Name>PatchedLightJson</Name>
     </ProjectReference>
     <ProjectReference Include="..\SuggTree\SuggTree.csproj">
       <Project>{05d4dd82-bdfc-465e-9e9e-09a22277f493}</Project>

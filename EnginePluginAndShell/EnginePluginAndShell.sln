@@ -19,8 +19,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SuggTree", "SuggTree\SuggTr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityShellServer", "UnityShellServer\UnityShellServer.csproj", "{65AF0BE3-8D4D-41CA-96E9-04C49E582E97}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetworkCommonTypes", "NetworkCommonTypes\NetworkCommonTypes.csproj", "{B3DE0098-4F79-4E4D-AFE7-B0046D78F093}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalCoreTypes", "GlobalCoreTypes\GlobalCoreTypes.csproj", "{E13F5B84-05B8-4E5B-97E8-AFA57FF1212A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shell", "Shell\Shell.csproj", "{494FCC25-1DDA-4AC8-BBDA-F5033BA26AB6}"
@@ -63,10 +61,6 @@ Global
 		{65AF0BE3-8D4D-41CA-96E9-04C49E582E97}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{65AF0BE3-8D4D-41CA-96E9-04C49E582E97}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{65AF0BE3-8D4D-41CA-96E9-04C49E582E97}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B3DE0098-4F79-4E4D-AFE7-B0046D78F093}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B3DE0098-4F79-4E4D-AFE7-B0046D78F093}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B3DE0098-4F79-4E4D-AFE7-B0046D78F093}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B3DE0098-4F79-4E4D-AFE7-B0046D78F093}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E13F5B84-05B8-4E5B-97E8-AFA57FF1212A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E13F5B84-05B8-4E5B-97E8-AFA57FF1212A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E13F5B84-05B8-4E5B-97E8-AFA57FF1212A}.Release|Any CPU.ActiveCfg = Release|Any CPU

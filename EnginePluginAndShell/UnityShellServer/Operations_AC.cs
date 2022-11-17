@@ -12,6 +12,9 @@ using MGRX = MainGrammar.MainGrammarRX;
 using D = System.Diagnostics.Debug;
 using MainGrammar ;
 
+using CoreTypes;
+
+
 // SuggTree decoupling types 
 using MembK = SuggestionTree.MembK;
 using MembK_E = SuggestionTree.MembK_E;
@@ -43,9 +46,9 @@ namespace Operations { // todo maybe own namespace
               \___________/
         */
         public class Responder { 
-            public ShellCommon.AC_Req request;
+            public AC_Req request;
             public PTokBase[] tokenizedRequest = null; // <- most responses require these to be set, null to deliberately crash the CF-paths that violate this 
-            public Responder( ShellCommon.AC_Req request ) {
+            public Responder( AC_Req request ) {
             }
 
             string [] mi_suggs_to_string ( IEnumerable<mi_sugg> suggs ) { 
@@ -60,7 +63,7 @@ namespace Operations { // todo maybe own namespace
             }
 
             public FinalizedResponse NoAC( string msg=null ) {
-                var resp = new ShellCommon.AC_Resp { 
+                var resp = new AC_Resp { 
                     toks_changed = false ,
                     msg = msg ,
                 };
@@ -68,14 +71,14 @@ namespace Operations { // todo maybe own namespace
             }
 
             public FinalizedResponse MembACNoSubst   ( IEnumerable<mi_sugg> suggs ) {
-                var resp = new ShellCommon.AC_Resp { 
+                var resp = new AC_Resp { 
                     toks_changed = false,
                     suggs = mi_suggs_to_string( suggs )
                 };
                 return new FinalizedResponse( resp ) ; 
             }
             public FinalizedResponse MembACWithSubst ( IEnumerable<mi_sugg> suggs , PTokBase[] new_toks , int nu_offs ) {
-                var resp = new ShellCommon.AC_Resp { 
+                var resp = new AC_Resp { 
                     toks_changed = true,
                     suggs = mi_suggs_to_string( suggs ),
                     toks  = new_toks,
@@ -84,14 +87,14 @@ namespace Operations { // todo maybe own namespace
                 return new FinalizedResponse( resp ) ; 
             }
             public FinalizedResponse TypeACNoSubst   ( IEnumerable<SGA.typeAC_alt> alts ) {
-                var resp = new ShellCommon.AC_Resp {
+                var resp = new AC_Resp {
                     toks_changed = false,
                     suggs = type_alts_to_string( alts )
                 };
                 return new FinalizedResponse( resp );
             }
             public FinalizedResponse TypeACWithSubst ( IEnumerable<SGA.typeAC_alt> alts , PTokBase[] new_toks , int nu_offs ) {
-                var resp = new ShellCommon.AC_Resp {
+                var resp = new AC_Resp {
                     toks_changed = true,
                     suggs = type_alts_to_string( alts ),
                     toks = new_toks,
@@ -100,7 +103,7 @@ namespace Operations { // todo maybe own namespace
                 return new FinalizedResponse( resp );
             }
             public FinalizedResponse FuncACWithSubst( IEnumerable<MethodInfo> mis , PTokBase[] new_toks , int nu_offs ) {
-                var resp = new ShellCommon.AC_Resp {
+                var resp = new AC_Resp {
                     toks_changed = true,
                     suggs = mis.Select( mi => mi.Name ).ToArray(),
                     toks = new_toks,
@@ -109,7 +112,7 @@ namespace Operations { // todo maybe own namespace
                 return new FinalizedResponse( resp );
             }
             public FinalizedResponse FuncACNoSubst( IEnumerable<MethodInfo> mis  ) {
-                var resp = new ShellCommon.AC_Resp {
+                var resp = new AC_Resp {
                     toks_changed = false,
                     suggs = mis.Select( mi => mi.Name ).ToArray()
                 };
@@ -118,8 +121,8 @@ namespace Operations { // todo maybe own namespace
 
         }
         public class FinalizedResponse { // extra type to force explicit setting of response for all CF-paths via compiler ( abuse type as finite-state-machine state (3)  ) 
-            public ShellCommon.AC_Resp ac_response;
-            public FinalizedResponse( ShellCommon.AC_Resp resp ) { ac_response = resp; }
+            public AC_Resp ac_response;
+            public FinalizedResponse( AC_Resp resp ) { ac_response = resp; }
         }
 
         #endregion 
@@ -368,7 +371,7 @@ namespace Operations { // todo maybe own namespace
        
 
 
-        public static ShellCommon.AC_Resp AC (  ShellCommon.AC_Req shell_ac_request , 
+        public static AC_Resp AC (  AC_Req shell_ac_request , 
                                                 Func<IEnumerable<PTokBase>,NamedNode> GetAst  // Shell needs to do its own tokenization 
                                                 ) {
             
@@ -490,9 +493,9 @@ namespace Operations { // todo maybe own namespace
         // cursor pos is set to "left_half".Length 
         // ( this corresponds with how everything else treats cursor positions , ( the pos is the index at which it would insert a char, possibly invalid index in case of append  ) 
         //   e.g. for a cursor at the end of a line     ("foo bar" "") 
-        public static ShellCommon.AC_Req   AC_Req_From_String ( string left_expr , string right_expr  ) {
+        public static AC_Req   AC_Req_From_String ( string left_expr , string right_expr  ) {
             
-            return new ShellCommon.AC_Req { arg = left_expr + right_expr , offs = left_expr.Length } ;
+            return new AC_Req { arg = left_expr + right_expr , offs = left_expr.Length } ;
         }
         // for easy comparison in testcases 
         public static string ToksToString ( IEnumerable<PTokBase> toks_in ) { 

@@ -19,7 +19,7 @@ namespace MainGrammar
 
 }
 
-namespace ShellCommon
+namespace CoreTypes
 {
 
 

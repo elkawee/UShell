@@ -6,10 +6,12 @@ using SObject = System.Object ;
 using System;
 using System.Linq;
 
+using CoreTypes;
+
 
 namespace Operations {
     public static partial class Operations { 
-        public static ShellCommon.TYPEINFO_Resp TYPEINFO ( ShellCommon.TYPEINFO_Req req ) {
+        public static TYPEINFO_Resp TYPEINFO ( TYPEINFO_Req req ) {
             // only do this for requests that are valid to be exectuted -> no relaxed grammar 
 
             // thus, most of this is copypasta from Operations_EVAL.cs 
@@ -27,7 +29,7 @@ namespace Operations {
             try { 
                 compilat  = TranslateEntry.TranslateFully_incomplete_tolerant( req.expression , GE , TLHS ) ;
             } catch ( Exception e ) {
-                return new ShellCommon.TYPEINFO_Resp { 
+                return new TYPEINFO_Resp { 
                     success = false ,
                     msg     = e.Message , 
                     // defaults to make serialization easier -- little use in specifying a contract here, as this is likely to change anyway 
@@ -45,7 +47,7 @@ namespace Operations {
             
 
 
-            return new ShellCommon.TYPEINFO_Resp { 
+            return new TYPEINFO_Resp { 
                 success = true , 
                 msg = "" , 
                 expr_unity_type = result_type , 

@@ -1,26 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-
-
-
-using D = System.Diagnostics.Debug;
-
-using MainGrammar;
-using LightJson;
+﻿using CoreTypes;
 using NLSPlain;
-using System.Reflection;
+using System;
+using System.IO;
+using System.Net.Sockets;
 
-namespace ShellCommon {
 
-    
-    #region TCPAdapter
-    public class LightJsonTCPAdapter {
+
+
+/*
+    moved to ExpTypeSerialization mostly out of convenience 
+    it has the same kind of dependencies  ( CoreTypes, Json and all the ExpType serialization machinery ) 
+*/
+
+
+public class LightJsonTCPAdapter {
         
         public class BlockingPeekReader : TextReader { 
             /*
@@ -119,44 +112,3 @@ namespace ShellCommon {
             return (CMD_Base)serializer.DESER(LJVal , channelLightJson);
         }
     }
-
-    #endregion
-
-
-
-
-
-    public static class ShellNetworkGlue {
-#if fakeNetwork
-        public static void Init() { }
-        public static AC_Resp AC ( AC_Req  req ) {
-            throw new NotImplementedException();
-        }
-
-#else
-      
-       
-
-        static LightJsonTCPAdapter adapter;
-
-        public static void Init() {
-            var EP = new IPEndPoint( IPAddress.Loopback , 13333 );
-            var CL     = new TcpClient();
-            CL.Connect(EP);
-            adapter = new LightJsonTCPAdapter( CL );
-        
-        }
-        public static AC_Resp AC ( AC_Req req ) {
-            adapter.Write( req );
-            return (AC_Resp)adapter.Read() ;
-        }
-        public static EVAL_Resp EVAL ( EVAL_Req req ) {
-            adapter.Write( req ) ;
-            return (EVAL_Resp)adapter.Read(); 
-        }
-
-
-#endif
-    }
-    
-}

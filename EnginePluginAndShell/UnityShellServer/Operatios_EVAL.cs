@@ -7,12 +7,14 @@ using SObject = System.Object ;
 using System;
 using System.Linq;
 
+using CoreTypes;
+
 namespace Operations { // todo maybe own namespace 
     public static partial class Operations {
 
         
 
-        public static ShellCommon.EVAL_Resp EVAL_stateless ( ShellCommon.EVAL_Req eval_req , bool analyz0r = false ) { 
+        public static EVAL_Resp EVAL_stateless ( EVAL_Req eval_req , bool analyz0r = false ) { 
 
             // fetch evaluation entry from the current junkjard that is EvaluatorTests_and_random_fux0ring.cs
 
@@ -29,7 +31,7 @@ namespace Operations { // todo maybe own namespace
             try { 
                 compilat  = TranslateEntry.TranslateFully_incomplete_tolerant( eval_req.expr , GE , TLHS ) ;
             } catch ( Exception e ) {
-                return new ShellCommon.EVAL_Resp { 
+                return new EVAL_Resp { 
                     success = false ,
                     msg = "translate ERROR : " +  e.Message + "\n" + e.StackTrace ,
                     result = new SObject[0]
@@ -45,7 +47,7 @@ namespace Operations { // todo maybe own namespace
             try { 
                 resultColumn = Evaluate.Eval( compilat , MM );
             } catch ( Exception e) {
-                return new ShellCommon.EVAL_Resp { 
+                return new EVAL_Resp { 
                     success = false ,
                     msg = "eval ERROR : " +  e.Message + "\n" + e.StackTrace ,
                     result = new SObject[0]
@@ -58,7 +60,7 @@ namespace Operations { // todo maybe own namespace
                 }
             } catch ( Exception ) {} // TODO - write a message to the file about how this crashed 
 
-            var resp = new ShellCommon.EVAL_Resp {
+            var resp = new EVAL_Resp {
                 success = true, 
                 msg     = "OK",
                 result  = resultColumn.values.ToArray()     // <- current serialization (ShellNetworkGlue.cs) simply does a ToString() for all Objects 
