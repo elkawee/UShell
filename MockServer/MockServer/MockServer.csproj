@@ -43,10 +43,50 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\EnginePluginAndShell\UnityShellServer\Operations_AC.cs">
+      <Link>Operations_AC.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\UnityShellServer\Operations_TYPEINFO.cs">
+      <Link>Operations_TYPEINFO.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\UnityShellServer\Operatios_EVAL.cs">
+      <Link>Operatios_EVAL.cs</Link>
+    </Compile>
+    <Compile Include="ProgramMockServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\EnginePluginAndShell\GlobalCoreTypes\GlobalCoreTypes.csproj">
+      <Project>{e13f5b84-05b8-4e5b-97e8-afa57ff1212a}</Project>
+      <Name>GlobalCoreTypes</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\EnginePluginAndShell\NLSPlain\NLSPlain.csproj">
+      <Project>{e3bc072b-305e-4e71-9310-f6b2a5b8e69b}</Project>
+      <Name>NLSPlain</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\CoreGrammarL\CoreGrammarL.csproj">
+      <Project>{f0fc42b9-260c-478c-ad92-ef425f99937d}</Project>
+      <Name>CoreGrammarL</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\EngineDropInCommonL\EngineDropInCommonL.csproj">
+      <Project>{6abce7e4-a8d6-418c-92b8-42aae890b2a1}</Project>
+      <Name>EngineDropInCommonL</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ExpTypeSerializationL\ExpTypeSerializationL.csproj">
+      <Project>{2e8b5ec2-3a7b-4624-8435-454d29a0d606}</Project>
+      <Name>ExpTypeSerializationL</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\SuggTree\SuggTreeL.csproj">
+      <Project>{49ee0c96-786c-475b-97a4-ad64a454840d}</Project>
+      <Name>SuggTreeL</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\UEngineMock\UEngineMock.csproj">
+      <Project>{2e6ea17d-e23c-4510-8ec7-41a46302f5e3}</Project>
+      <Name>UEngineMock</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

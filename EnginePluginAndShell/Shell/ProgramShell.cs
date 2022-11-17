@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.IO;
 
-using ShellCommon;
+using CoreTypes;
 
 using SUH = Shell.ShellUtiltyHacks;
 
@@ -46,8 +46,19 @@ namespace Shell {
 
         static void Main(string[] args) {
 
+
+
+
+            IPEndPoint EP = new IPEndPoint( IPAddress.Loopback , 13333 ); ;
+            TcpClient CL  = new TcpClient();
+            LightJsonTCPAdapter adapter ;
+
+            
+
             try {
-                ShellNetworkGlue.Init();
+                CL.Connect(EP);
+                adapter = new LightJsonTCPAdapter( CL );
+                // ShellNetworkGlue.Init();
             } catch ( Exception e ) { Console.WriteLine(e.Message); Console.ReadLine(); return ;}
             Console.WriteLine("connected");
 
@@ -57,7 +68,12 @@ namespace Shell {
                     var req_eval = new EVAL_Req { 
                         expr = str_in 
                     };
-                    EVAL_Resp resp = ShellNetworkGlue.EVAL(  req_eval ) ;
+
+                    // copy pasta of old ShellNetworkGlue.Eval 
+                    adapter.Write(req_eval);
+                    EVAL_Resp resp = (EVAL_Resp)adapter.Read();
+                    // e.o. pasta 
+
                     return 
                         "\n" + 
                         (resp.success ? "OK" : "Error" )+ 
@@ -67,8 +83,11 @@ namespace Shell {
 
                 AC              = ( str_in , offs ) => {
                     var req_ac = new AC_Req { arg = str_in , offs = offs };
-                    AC_Resp resp =   ShellNetworkGlue.AC ( req_ac ) ; 
-                    
+                    // pasta again 
+                    adapter.Write( req_ac ); 
+                    AC_Resp resp =   (AC_Resp)adapter.Read();
+                    // e.o. pasta 
+
                     return resp;
                 }
 

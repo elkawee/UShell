@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{494FCC25-1DDA-4AC8-BBDA-F5033BA26AB6}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <ProjectGuid>{2E8B5EC2-3A7B-4624-8435-454D29A0D606}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Shell</RootNamespace>
-    <AssemblyName>Shell</AssemblyName>
+    <RootNamespace>ExpTypeSerializationL</RootNamespace>
+    <AssemblyName>ExpTypeSerializationL</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -30,9 +30,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup>
-    <StartupObject />
-  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -44,26 +41,46 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ProgramShell.cs" />
+    <Compile Include="..\..\EnginePluginAndShell\ExpTypeSerialization\ChannelLightJson.cs">
+      <Link>ChannelLightJson.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\ExpTypeSerialization\CoreTypeCustomSerializers.cs">
+      <Link>CoreTypeCustomSerializers.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\ExpTypeSerialization\ExpTypeMain.cs">
+      <Link>ExpTypeMain.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\ExpTypeSerialization\LightJsonTCPAdapter.cs">
+      <Link>LightJsonTCPAdapter.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\ExpTypeSerialization\SequenceExpType.cs">
+      <Link>SequenceExpType.cs</Link>
+    </Compile>
+    <Compile Include="..\..\EnginePluginAndShell\ExpTypeSerialization\StructExpType.cs">
+      <Link>StructExpType.cs</Link>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Shell.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CoreGrammar\CoreGrammar.csproj">
-      <Project>{c11ae99c-d6b9-452a-9131-b8ef48d3d074}</Project>
-      <Name>CoreGrammar</Name>
+    <ProjectReference Include="..\..\EnginePluginAndShell\AssembliesAux\AssembliesAux.csproj">
+      <Project>{d5e7033b-ee1d-418a-ad44-b4a8e94fd420}</Project>
+      <Name>AssembliesAux</Name>
     </ProjectReference>
-    <ProjectReference Include="..\ExpTypeSerialization\ExpTypeSerialization.csproj">
-      <Project>{300b585d-d358-4343-8521-bd93c6d6262a}</Project>
-      <Name>ExpTypeSerialization</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\GlobalCoreTypes\GlobalCoreTypes.csproj">
+    <ProjectReference Include="..\..\EnginePluginAndShell\GlobalCoreTypes\GlobalCoreTypes.csproj">
       <Project>{e13f5b84-05b8-4e5b-97e8-afa57ff1212a}</Project>
       <Name>GlobalCoreTypes</Name>
     </ProjectReference>
-    <ProjectReference Include="..\NLSPlain\NLSPlain.csproj">
+    <ProjectReference Include="..\..\EnginePluginAndShell\NLSPlain\NLSPlain.csproj">
       <Project>{e3bc072b-305e-4e71-9310-f6b2a5b8e69b}</Project>
       <Name>NLSPlain</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\EnginePluginAndShell\PatchedLightJson\PatchedLightJson.csproj">
+      <Project>{0d0290da-0401-4bd9-b383-49dbcfc4e7b2}</Project>
+      <Name>PatchedLightJson</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\UEngineMock\UEngineMock.csproj">
+      <Project>{2e6ea17d-e23c-4510-8ec7-41a46302f5e3}</Project>
+      <Name>UEngineMock</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

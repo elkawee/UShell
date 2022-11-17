@@ -17,6 +17,8 @@ using Tok = MainGrammar.PTok;
 using NLSPlain;
 
 
+using CoreTypes;
+
 public class Compilat {
     //public IEnumerable<Scope.Ref> externals { get { return deltaScope.externals; } }
     //public IEnumerable<Scope.Ref> ownDecls { get { return deltaScope.ownDecls; } }

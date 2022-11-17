@@ -56,10 +56,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\EnginePluginAndShell\ExpTypeSerialization\ExpTypeSerialization.csproj">
-      <Project>{300b585d-d358-4343-8521-bd93c6d6262a}</Project>
-      <Name>ExpTypeSerialization</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\EnginePluginAndShell\GlobalCoreTypes\GlobalCoreTypes.csproj">
       <Project>{e13f5b84-05b8-4e5b-97e8-afa57ff1212a}</Project>
       <Name>GlobalCoreTypes</Name>
@@ -71,6 +67,10 @@
     <ProjectReference Include="..\..\EnginePluginAndShell\PatchedLightJson\PatchedLightJson.csproj">
       <Project>{0d0290da-0401-4bd9-b383-49dbcfc4e7b2}</Project>
       <Name>PatchedLightJson</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ExpTypeSerializationL\ExpTypeSerializationL.csproj">
+      <Project>{2e8b5ec2-3a7b-4624-8435-454d29a0d606}</Project>
+      <Name>ExpTypeSerializationL</Name>
     </ProjectReference>
     <ProjectReference Include="..\UEngineMock\UEngineMock.csproj">
       <Project>{2e6ea17d-e23c-4510-8ec7-41a46302f5e3}</Project>

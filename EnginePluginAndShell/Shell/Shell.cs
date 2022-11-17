@@ -13,7 +13,7 @@ using PTokWhitespace = MainGrammar.PTokWhitespace;
 using MG = MainGrammar.MainGrammar;
 using MGRX = MainGrammar.MainGrammarRX;
 using D = System.Diagnostics.Debug;
-using ShellCommon;
+using CoreTypes;
 
 namespace Shell {
 
