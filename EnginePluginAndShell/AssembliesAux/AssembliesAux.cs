@@ -16,66 +16,99 @@ public static class AssembliesAux
         so this is still incomplete 
     */
 
-    public static AssemblyName[] _allAssemblyNames = null;
-    public static AssemblyName[] allAssemblyNames { // this has the side effect of loading all of these names 
-        get {
-            if (_allAssemblyNames == null) _allAssemblyNames = FindAndRecursivelyLoadAllAssemblies_PlainName().ToArray();
-            return _allAssemblyNames;
-        } }
+   
 
-    public static IEnumerable<Assembly> allAssemblies {  get { return allAssemblyNames.Select(assN => AppDomain.CurrentDomain.Load(assN)); } }
-
-
-    public static IEnumerable<AssemblyName> FindAndRecursivelyLoadAllAssemblies_PlainName()
+    public class PlainNameComparer_Assembly : EqualityComparer<Assembly>
     {
+        public static string StringPlainName ( Assembly asm) => asm.GetName().Name ; 
 
-        /*
-            using `AssemblyName.FullName` instead of just `.Name` reveals that there can be multiple versions of the same
-            assembly referenced and loaded at the same time - making types non unique (!!) 
+        public override bool Equals(Assembly x, Assembly y) => StringPlainName( x ) == StringPlainName( y ); 
 
-            using the plain name sweeps this under the rug and lists only the assembliy versions discovered first - which is most likely what you want in 99% of cases
-            ( also might prevent discovery of indirectly referenced assemblies, if referenced by a suppressed version - which is an even more esotheric problem ) 
+        public override int GetHashCode(Assembly obj) => StringPlainName(obj).GetHashCode();
 
-        */
+    }
 
-        if (_allAssemblyNames != null) return _allAssemblyNames;
+    public class PlainNameComparer_AssemblyName : EqualityComparer<AssemblyName>
+    {
+        public static string StringPlainName ( AssemblyName asmN) => asmN.Name ; 
 
-        var Domain = AppDomain.CurrentDomain;
+        public override bool Equals(AssemblyName x, AssemblyName y) => StringPlainName( x ) == StringPlainName( y ); 
 
-        //  GetAssemblies() is a misnomer - should be GetLoadedAssemblies, cuz that's what it does 
+        public override int GetHashCode(AssemblyName obj) => StringPlainName(obj).GetHashCode();
 
-        var loaded_ass_names = new List<AssemblyName>(Domain.GetAssemblies().Select(_ => _.GetName()));
-        var todo_ass_names   = new List<AssemblyName>(Domain.GetAssemblies().SelectMany(assem => assem.GetReferencedAssemblies()));
+    }
 
-        var loaded_string_names = new HashSet<string>(loaded_ass_names.Select(_ => _.Name));
+    
 
-        while (todo_ass_names.Count() > 0)
+    static bool initialzing = false ;          // to catch ugly edge-cases 
+    static Assembly[] _allAssemblies = null ; 
+
+    public static Assembly[] allAssemblies {  get { 
+            if ( _allAssemblies != null ) return _allAssemblies ;
+
+            if ( initialzing ) throw new Exception("double initialization request - this means assembly discovery has either crashed or there is a race condition - unrecoverable - this is a severe bug ");
+            initialzing = true ;
+            FetchAllAssemblies();
+            initialzing = false ;
+            return _allAssemblies ;
+
+            } } 
+
+    public static void FetchAllAssemblies ()
+    {
+        HashSet<AssemblyName> skippedAssemblies = new HashSet<AssemblyName>() ;
+        HashSet<AssemblyName> todoAssemblies    = new HashSet<AssemblyName>() ;
+
+        HashSet<Assembly>     doneAssemblies    = new HashSet<Assembly>();
+
+
+        var comparer_asmname =  new PlainNameComparer_AssemblyName() ;
+
+        // you can only get a reference to ::Assembly if the assembly it represents can and was successfully loaded
+        // since we don't want to consider references between unloadable asms anyway using this type is quite practical 
+
+        Action<Assembly> pushEdges = ( Assembly asm) => {
+            AssemblyName [] new_names =  asm.GetReferencedAssemblies();
+            foreach ( var name in new_names)
+            {
+                if ( ! skippedAssemblies.Contains(name ) 
+                    && ( ! doneAssemblies.Select( x => x.GetName()).Contains(name , comparer_asmname )) )
+                {
+                    todoAssemblies.Add(name );
+                }
+
+                    
+            }
+        };
+
+        Assembly[] initialAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+        foreach ( Assembly asm in initialAssemblies)
         {
-            var currentAssemName = todo_ass_names[0];
-            todo_ass_names.RemoveAt(0);
+            pushEdges(asm);
+        }
 
-            if (loaded_string_names.Contains(currentAssemName.Name)) continue;
-            try
+        while( todoAssemblies.Any())
+        {
+            // pop random elem 
+            AssemblyName pivot_name = todoAssemblies.First();    todoAssemblies.Remove(pivot_name);
+            Assembly     pivot_asm  = null ;
+
+            try    // load 
             {
-                var assem = Domain.Load(currentAssemName); // here be flying exceptions potentially, in that case dependencies are also skipped 
-                todo_ass_names.AddRange(assem.GetReferencedAssemblies());
-
-                foreach (var refd_assem in assem.GetReferencedAssemblies()) new { from = assem.GetName(), to = refd_assem.Name }.NLSend("adding ref :: ");
-
-                loaded_ass_names.Add(currentAssemName);
-
-                loaded_string_names.Add(currentAssemName.Name);
-
-            }
-            catch (Exception e)
+                pivot_asm = AppDomain.CurrentDomain.Load(pivot_name);
+                doneAssemblies.Add(pivot_asm);
+            } catch ( Exception e)
             {
-                e.ToString().NLSend("skipping Assembly :: ");
-
+                skippedAssemblies.Add( pivot_name);
+                e.Message.NLSend("skipping " + pivot_name.Name + " because : ");
             }
+
+            // add edges  ( adding to "done" is done beforehand - i don't know if selfedges are contained in this graph - and this way i don't need to ) 
+            pushEdges(pivot_asm);
 
         }
-        return loaded_ass_names;
 
+        _allAssemblies = doneAssemblies.ToArray();
 
     }
 
@@ -84,23 +117,14 @@ public static class AssembliesAux
     {
         List<Type> R = new List<Type>();
 
-        foreach (var assemName in allAssemblyNames )
+        foreach ( Assembly asm in allAssemblies )
         {
-            try
+            foreach ( Type T in asm.GetTypes())
             {
-                var assem = AppDomain.CurrentDomain.Load(assemName);
-                foreach (var t in assem.GetTypes())
-                {
-                    if (filterF(t)) R.Add(t);
-                }
+                if( filterF( T)) R.Add(T); 
             }
-            catch (Exception e)
-            {
-                assemName.Name.NLSend("skipping in typescan :");
-                e.NLSend("because : ");
-            }
-
         }
+        
         return R;
     }
 }

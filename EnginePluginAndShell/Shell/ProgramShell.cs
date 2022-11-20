@@ -58,7 +58,7 @@ namespace Shell {
             try {
                 CL.Connect(EP);
                 adapter = new LightJsonTCPAdapter( CL );
-                // ShellNetworkGlue.Init();
+
             } catch ( Exception e ) { Console.WriteLine(e.Message); Console.ReadLine(); return ;}
             Console.WriteLine("connected");
 

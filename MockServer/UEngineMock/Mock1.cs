@@ -865,6 +865,31 @@ namespace UnityEngine {
 
     public struct Matrix4x4
     {
+
+        public static Matrix4x4 identity => identityMatrix;
+
+        public Matrix4x4(Vector4 column0, Vector4 column1, Vector4 column2, Vector4 column3)
+	{
+		m00 = column0.x;
+		m01 = column1.x;
+		m02 = column2.x;
+		m03 = column3.x;
+		m10 = column0.y;
+		m11 = column1.y;
+		m12 = column2.y;
+		m13 = column3.y;
+		m20 = column0.z;
+		m21 = column1.z;
+		m22 = column2.z;
+		m23 = column3.z;
+		m30 = column0.w;
+		m31 = column1.w;
+		m32 = column2.w;
+		m33 = column3.w;
+	}
+
+        private static readonly Matrix4x4 identityMatrix = new Matrix4x4(new Vector4(1f, 0f, 0f, 0f), new Vector4(0f, 1f, 0f, 0f), new Vector4(0f, 0f, 1f, 0f), new Vector4(0f, 0f, 0f, 1f));
+
         public float m00;
         public float m33;
         public float m23;
@@ -1332,7 +1357,51 @@ namespace UnityEngine {
         {
             return new Enumerator( this ) ;
         }
-        public Matrix4x4 localToWorldMatrix { get; }
+
+        public Vector3 position
+	    {
+		    get
+		    {
+			    INTERNAL_get_position(out Vector3 value);
+			    return value;
+		    }
+		    set
+		    {
+			    INTERNAL_set_position(ref value);
+		    }
+	    }
+
+        private /* extern */ void INTERNAL_get_position(out Vector3 value)
+        {
+            value = new Vector3();
+            // guesswork 
+            value.x = localToWorldMatrix.m03;
+            value.y = localToWorldMatrix.m13;
+            value.y = localToWorldMatrix.m23;
+        }
+
+	
+	    private /*extern*/ void INTERNAL_set_position(ref Vector3 value)
+        {
+             // guesswork 
+             var M = _localToWorldMatrix ;
+            M.m03 = value.x ; 
+            M.m13 = value.y ; 
+            M.m23 = value.z ;
+            _localToWorldMatrix = M; 
+
+        }
+
+
+        /*
+            quickhack 
+            implementing this properly almost certainly needs a different representation 
+        */
+
+
+        Matrix4x4 _localToWorldMatrix = Matrix4x4.identity;
+
+        public Matrix4x4 localToWorldMatrix { get { return _localToWorldMatrix; } }
         public Matrix4x4 worldToLocalMatrix { get; }
         
 
